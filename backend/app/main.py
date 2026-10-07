@@ -3,7 +3,7 @@ from sqlalchemy import text
 
 from app.database import engine, Base
 from app import models
-from app.routers import empresas
+from app.routers import empresas, vacantes
 
 
 Base.metadata.create_all(bind=engine)
@@ -17,6 +17,7 @@ app = FastAPI(
 
 
 app.include_router(empresas.router)
+app.include_router(vacantes.router)
 
 
 @app.get("/")
