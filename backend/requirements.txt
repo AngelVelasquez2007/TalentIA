@@ -1,5 +1,35 @@
+# ============================================================
+# TalentIA - Dependencias del backend
+# ============================================================
+#
+# FastAPI:
+# Framework utilizado para construir la API REST.
+#
+# Uvicorn:
+# Servidor ASGI utilizado para ejecutar FastAPI.
+#
+# SQLAlchemy:
+# ORM encargado de mapear las tablas de PostgreSQL
+# a clases de Python.
+#
+# psycopg:
+# Driver que permite a Python conectarse con PostgreSQL.
+#
+# python-dotenv:
+# Permite cargar variables privadas desde el archivo .env.
+#
+# scikit-learn:
+# Utilizado por el motor de análisis inteligente.
+# Implementa TF-IDF y similitud coseno para comparar
+# el perfil de un candidato con los requisitos de una vacante.
+# ============================================================
+
 fastapi>=0.115,<1
-uvicorn>=0.30,<1
+uvicorn[standard]>=0.30,<1
+
 SQLAlchemy>=2.0,<3
 psycopg[binary]>=3.2,<4
+
 python-dotenv>=1.0,<2
+
+scikit-learn>=1.5,<2
