@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, schemas
+from app.security import require_roles
 
 
 router = APIRouter(
@@ -43,7 +44,8 @@ def obtener_vacante(
 )
 def crear_vacante(
     datos: schemas.VacanteCrear,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario = Depends(require_roles("administrador", "reclutador"))
 ):
     empresa = (
         db.query(models.Empresa)
@@ -56,6 +58,9 @@ def crear_vacante(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="La empresa no existe"
         )
+
+    if usuario.rol.nombre == "reclutador" and usuario.empresa_id != datos.empresa_id:
+        raise HTTPException(403, "Solo puedes publicar para tu empresa")
 
     nueva_vacante = models.Vacante(
         titulo=datos.titulo,
@@ -82,7 +87,8 @@ def crear_vacante(
 def actualizar_vacante(
     vacante_id: int,
     datos: schemas.VacanteActualizar,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario = Depends(require_roles("administrador", "reclutador"))
 ):
     vacante = (
         db.query(models.Vacante)
@@ -95,6 +101,9 @@ def actualizar_vacante(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Vacante no encontrada"
         )
+
+    if usuario.rol.nombre == "reclutador" and usuario.empresa_id != vacante.empresa_id:
+        raise HTTPException(403, "Solo puedes modificar vacantes de tu empresa")
 
     cambios = datos.model_dump(exclude_unset=True)
 
@@ -112,6 +121,9 @@ def actualizar_vacante(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="La empresa no existe"
             )
+
+    if usuario.rol.nombre == "reclutador" and "empresa_id" in cambios and cambios["empresa_id"] != usuario.empresa_id:
+        raise HTTPException(403, "No puedes transferir vacantes a otra empresa")
 
     salario_min = cambios.get(
         "salario_min",
@@ -151,7 +163,8 @@ def actualizar_vacante(
 )
 def eliminar_vacante(
     vacante_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario = Depends(require_roles("administrador", "reclutador"))
 ):
     vacante = (
         db.query(models.Vacante)
@@ -164,6 +177,9 @@ def eliminar_vacante(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Vacante no encontrada"
         )
+
+    if usuario.rol.nombre == "reclutador" and usuario.empresa_id != vacante.empresa_id:
+        raise HTTPException(403, "Solo puedes modificar vacantes de tu empresa")
 
     db.delete(vacante)
     db.commit()

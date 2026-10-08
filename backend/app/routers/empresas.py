@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app import models, schemas
+from app.security import require_roles
 
 
 router = APIRouter(
@@ -43,7 +44,8 @@ def obtener_empresa(
 )
 def crear_empresa(
     datos: schemas.EmpresaCrear,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario = Depends(require_roles('administrador'))
 ):
     nueva_empresa = models.Empresa(
         nombre=datos.nombre,
@@ -63,7 +65,8 @@ def crear_empresa(
 def actualizar_empresa(
     empresa_id: int,
     datos: schemas.EmpresaActualizar,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario = Depends(require_roles("administrador"))
 ):
     empresa = (
         db.query(models.Empresa)
@@ -94,7 +97,8 @@ def actualizar_empresa(
 )
 def eliminar_empresa(
     empresa_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    usuario = Depends(require_roles("administrador"))
 ):
     empresa = (
         db.query(models.Empresa)

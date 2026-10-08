@@ -1,0 +1,22 @@
+# Python
+backend/venv/
+venv/
+__pycache__/
+*.pyc
+
+# Variables privadas
+.env
+backend/.env
+
+# Angular / Node
+frontend/node_modules/
+node_modules/
+.angular/
+dist/
+
+# VS Code
+.vscode/
+
+# Sistema
+.DS_Store
+Thumbs.db
