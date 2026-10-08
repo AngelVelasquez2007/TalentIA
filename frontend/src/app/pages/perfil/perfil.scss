@@ -1,0 +1,924 @@
+/**
+ * ============================================================
+ * TalentIA - Perfil profesional
+ * ============================================================
+ */
+
+:host {
+  display: block;
+
+  min-height:
+    calc(100vh - 140px);
+
+  padding:
+    38px 24px 55px;
+
+  background:
+    #f5f6fa;
+
+  color:
+    #172033;
+}
+
+
+* {
+  box-sizing:
+    border-box;
+}
+
+
+/* ==========================================================
+   CONTENEDOR
+   ========================================================== */
+
+.profile-page {
+  width:
+    min(1100px, 100%);
+
+  margin:
+    0 auto;
+}
+
+
+/* ==========================================================
+   HEADER
+   ========================================================== */
+
+.profile-header {
+  display:
+    flex;
+
+  align-items:
+    flex-start;
+
+  justify-content:
+    space-between;
+
+  gap:
+    30px;
+
+  margin-bottom:
+    28px;
+}
+
+
+.profile-header h1 {
+  margin:
+    4px 0 8px;
+
+  font-size:
+    35px;
+
+  letter-spacing:
+    -1px;
+}
+
+
+.profile-header p:last-child {
+  max-width:
+    680px;
+
+  margin:
+    0;
+
+  color:
+    #71798c;
+
+  line-height:
+    1.6;
+}
+
+
+.eyebrow {
+  margin:
+    0;
+
+  color:
+    #4f46e5;
+
+  font-size:
+    12px;
+
+  font-weight:
+    900;
+
+  letter-spacing:
+    1.3px;
+}
+
+
+.back-link {
+  display:
+    inline-flex;
+
+  align-items:
+    center;
+
+  min-height:
+    42px;
+
+  padding:
+    0 15px;
+
+  border:
+    1px solid #d9ddea;
+
+  border-radius:
+    10px;
+
+  background:
+    white;
+
+  color:
+    #4338ca;
+
+  font-size:
+    13px;
+
+  font-weight:
+    800;
+
+  text-decoration:
+    none;
+}
+
+
+/* ==========================================================
+   MENSAJES
+   ========================================================== */
+
+.success-message,
+.error-message {
+  margin-bottom:
+    20px;
+
+  padding:
+    14px 16px;
+
+  border-radius:
+    11px;
+
+  font-size:
+    13px;
+}
+
+
+.success-message {
+  border:
+    1px solid #bbf7d0;
+
+  background:
+    #f0fdf4;
+
+  color:
+    #166534;
+}
+
+
+.error-message {
+  border:
+    1px solid #fecaca;
+
+  background:
+    #fff1f2;
+
+  color:
+    #b42318;
+}
+
+
+/* ==========================================================
+   LAYOUT
+   ========================================================== */
+
+.profile-layout {
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap:
+    20px;
+}
+
+
+.card {
+  padding:
+    25px;
+
+  border:
+    1px solid #e3e6ef;
+
+  border-radius:
+    17px;
+
+  background:
+    white;
+
+  box-shadow:
+    0 8px 25px
+    rgba(23, 32, 51, 0.04);
+}
+
+
+.full-card,
+.save-section {
+  grid-column:
+    1 / -1;
+}
+
+
+/* ==========================================================
+   CARD HEADER
+   ========================================================== */
+
+.card-heading {
+  display:
+    flex;
+
+  align-items:
+    flex-start;
+
+  gap:
+    13px;
+
+  margin-bottom:
+    23px;
+}
+
+
+.step {
+  width:
+    40px;
+
+  height:
+    40px;
+
+  display:
+    grid;
+
+  place-items:
+    center;
+
+  flex:
+    0 0 40px;
+
+  border-radius:
+    11px;
+
+  background:
+    #eef2ff;
+
+  color:
+    #4338ca;
+
+  font-size:
+    11px;
+
+  font-weight:
+    900;
+}
+
+
+.card-heading h2 {
+  margin:
+    0 0 4px;
+
+  font-size:
+    20px;
+}
+
+
+.card-heading p {
+  margin:
+    0;
+
+  color:
+    #7a8294;
+
+  font-size:
+    12px;
+}
+
+
+/* ==========================================================
+   FORMULARIOS
+   ========================================================== */
+
+.form-grid {
+  display:
+    grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap:
+    17px;
+}
+
+
+label {
+  display:
+    flex;
+
+  flex-direction:
+    column;
+
+  gap:
+    7px;
+
+  color:
+    #343c52;
+
+  font-size:
+    12px;
+
+  font-weight:
+    700;
+}
+
+
+input,
+textarea,
+select {
+  width:
+    100%;
+
+  border:
+    1px solid #d7dbe7;
+
+  border-radius:
+    10px;
+
+  outline:
+    none;
+
+  background:
+    white;
+
+  color:
+    #1d2539;
+
+  font:
+    inherit;
+}
+
+
+input,
+select {
+  min-height:
+    45px;
+
+  padding:
+    0 12px;
+}
+
+
+textarea {
+  padding:
+    12px;
+
+  resize:
+    vertical;
+
+  line-height:
+    1.55;
+}
+
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color:
+    #6366f1;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(99, 102, 241, 0.1);
+}
+
+
+.input-suffix {
+  position:
+    relative;
+}
+
+
+.input-suffix input {
+  padding-right:
+    53px;
+}
+
+
+.input-suffix span {
+  position:
+    absolute;
+
+  top:
+    50%;
+
+  right:
+    12px;
+
+  transform:
+    translateY(-50%);
+
+  color:
+    #8a91a1;
+
+  font-size:
+    10px;
+}
+
+
+/* ==========================================================
+   PERFIL PROFESIONAL
+   ========================================================== */
+
+.professional-profile {
+  width:
+    100%;
+}
+
+
+.tip {
+  margin-top:
+    17px;
+
+  padding:
+    14px;
+
+  border:
+    1px solid #dbe3ff;
+
+  border-radius:
+    10px;
+
+  background:
+    #f5f7ff;
+}
+
+
+.tip strong {
+  display:
+    block;
+
+  margin-bottom:
+    5px;
+
+  color:
+    #3730a3;
+
+  font-size:
+    11px;
+}
+
+
+.tip p {
+  margin:
+    0;
+
+  color:
+    #656e84;
+
+  font-size:
+    11px;
+
+  line-height:
+    1.55;
+}
+
+
+/* ==========================================================
+   AGREGAR SKILL
+   ========================================================== */
+
+.add-skill {
+  display:
+    grid;
+
+  grid-template-columns:
+    1fr auto;
+
+  gap:
+    10px;
+}
+
+
+button {
+  border:
+    0;
+
+  border-radius:
+    10px;
+
+  background:
+    #4f46e5;
+
+  color:
+    white;
+
+  font: inherit;
+
+  font-size:
+    12px;
+
+  font-weight:
+    800;
+
+  cursor:
+    pointer;
+}
+
+
+.add-skill button {
+  min-width:
+    105px;
+}
+
+
+/* ==========================================================
+   SUGERENCIAS
+   ========================================================== */
+
+.suggestions {
+  display:
+    flex;
+
+  flex-wrap:
+    wrap;
+
+  align-items:
+    center;
+
+  gap:
+    7px;
+
+  margin-top:
+    15px;
+}
+
+
+.suggestions-label {
+  margin-right:
+    3px;
+
+  color:
+    #818899;
+
+  font-size:
+    10px;
+}
+
+
+.suggestion {
+  min-height:
+    30px;
+
+  padding:
+    0 9px;
+
+  border:
+    1px solid #dcdfea;
+
+  background:
+    #f8f9fc;
+
+  color:
+    #545d72;
+
+  font-size:
+    10px;
+}
+
+
+/* ==========================================================
+   HABILIDADES
+   ========================================================== */
+
+.skills-list {
+  display:
+    grid;
+
+  gap:
+    10px;
+
+  margin-top:
+    22px;
+}
+
+
+.skill-row {
+  display:
+    grid;
+
+  grid-template-columns:
+    minmax(160px, 1.4fr)
+    minmax(130px, 1fr)
+    minmax(120px, 0.8fr)
+    auto;
+
+  gap:
+    13px;
+
+  align-items:
+    end;
+
+  padding:
+    14px;
+
+  border:
+    1px solid #e4e7ef;
+
+  border-radius:
+    12px;
+
+  background:
+    #fafbfc;
+}
+
+
+.skill-name {
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  gap:
+    9px;
+
+  min-height:
+    45px;
+}
+
+
+.skill-icon {
+  width:
+    28px;
+
+  height:
+    28px;
+
+  display:
+    grid;
+
+  place-items:
+    center;
+
+  border-radius:
+    8px;
+
+  background:
+    #ecfdf3;
+
+  color:
+    #15803d;
+
+  font-size:
+    11px;
+
+  font-weight:
+    900;
+}
+
+
+.skill-name strong {
+  font-size:
+    13px;
+}
+
+
+.delete-button {
+  min-height:
+    45px;
+
+  padding:
+    0 13px;
+
+  border:
+    1px solid #fecaca;
+
+  background:
+    #fff1f2;
+
+  color:
+    #b42318;
+}
+
+
+.empty-skills {
+  margin-top:
+    20px;
+
+  padding:
+    30px;
+
+  border:
+    1px dashed #d9dde8;
+
+  border-radius:
+    12px;
+
+  text-align:
+    center;
+}
+
+
+.empty-skills strong {
+  display:
+    block;
+
+  margin-bottom:
+    5px;
+}
+
+
+.empty-skills p {
+  margin:
+    0;
+
+  color:
+    #7c8496;
+
+  font-size:
+    12px;
+}
+
+
+/* ==========================================================
+   GUARDAR
+   ========================================================== */
+
+.save-section {
+  display:
+    flex;
+
+  justify-content:
+    space-between;
+
+  align-items:
+    center;
+
+  gap:
+    25px;
+
+  padding:
+    22px 25px;
+
+  border:
+    1px solid #dcdffd;
+
+  border-radius:
+    16px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #fafaff,
+      #f4f6ff
+    );
+}
+
+
+.save-section strong {
+  display:
+    block;
+
+  margin-bottom:
+    4px;
+}
+
+
+.save-section p {
+  margin:
+    0;
+
+  color:
+    #777f91;
+
+  font-size:
+    11px;
+}
+
+
+.save-button {
+  min-height:
+    46px;
+
+  padding:
+    0 22px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #4f46e5,
+      #6366f1
+    );
+}
+
+
+button:disabled {
+  opacity:
+    0.55;
+
+  cursor:
+    not-allowed;
+}
+
+
+/* ==========================================================
+   CARGANDO
+   ========================================================== */
+
+.loading {
+  padding:
+    50px;
+
+  text-align:
+    center;
+
+  color:
+    #737b8e;
+}
+
+
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
+
+@media (
+  max-width: 850px
+) {
+
+  .profile-layout {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .full-card,
+  .save-section {
+    grid-column:
+      auto;
+  }
+
+
+  .skill-row {
+    grid-template-columns:
+      1fr 1fr;
+  }
+}
+
+
+@media (
+  max-width: 600px
+) {
+
+  :host {
+    padding:
+      24px 13px;
+  }
+
+
+  .profile-header,
+  .save-section {
+    flex-direction:
+      column;
+
+    align-items:
+      stretch;
+  }
+
+
+  .profile-header h1 {
+    font-size:
+      29px;
+  }
+
+
+  .form-grid,
+  .skill-row {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .add-skill {
+    grid-template-columns:
+      1fr;
+  }
+
+
+  .add-skill button {
+    min-height:
+      43px;
+  }
+}

@@ -1,1 +1,470 @@
-<section class="panel"><h1>Postulaciones</h1><p class="muted">Seguimiento de solicitudes y evaluación orientativa.</p><p class="error" [hidden]="!error">{{error}}</p><p *ngIf="!items.length">Todavía no hay postulaciones.</p><article class="job" *ngFor="let p of items"><h3>{{p.vacante}}</h3><p>Estado: <strong>{{p.estado}}</strong> · Compatibilidad: {{p.puntuacion_ia}}%</p><p *ngIf="auth.usuario?.rol !== 'candidato'">Candidato #{{p.candidato_id}}</p><div class="actions" *ngIf="auth.usuario?.rol !== 'candidato'"><button class="secondary" (click)="cambiar(p.id,'revision')">En revisión</button><button class="secondary" (click)="cambiar(p.id,'entrevista')">Entrevista</button><button class="secondary" (click)="cambiar(p.id,'aceptada')">Aceptar</button><button class="danger" (click)="cambiar(p.id,'rechazada')">Rechazar</button></div></article></section>
+<!--
+============================================================
+TalentIA - Mis postulaciones
+Archivo: src/app/pages/postulaciones/postulaciones.html
+============================================================
+-->
+
+<section class="page">
+
+  <div class="page-header">
+
+    <div>
+
+      <p class="eyebrow">
+        SEGUIMIENTO DE CANDIDATURAS
+      </p>
+
+      <h1>
+        Mis postulaciones
+      </h1>
+
+      <p class="subtitle">
+        Consulta el estado de tus procesos y los resultados
+        de compatibilidad calculados por TalentIA.
+      </p>
+
+    </div>
+
+
+    <a
+      routerLink="/vacantes"
+      class="back-link"
+    >
+      Ver vacantes
+    </a>
+
+  </div>
+
+
+  <!-- ======================================================
+       USUARIO NO CANDIDATO
+       ====================================================== -->
+
+  <div
+    class="info-message"
+    *ngIf="
+      auth.usuario &&
+      auth.usuario?.rol?.nombre !== 'candidato'
+    "
+  >
+
+    <strong>
+      Panel reservado para candidatos
+    </strong>
+
+    <p>
+      Las cuentas de reclutador y administrador gestionan
+      candidatos desde el panel de reclutamiento.
+    </p>
+
+    <a routerLink="/reclutador">
+      Ir al panel de reclutamiento
+    </a>
+
+  </div>
+
+
+  <!-- ======================================================
+       ERROR
+       ====================================================== -->
+
+  <div
+    class="error-message"
+    *ngIf="error"
+  >
+    {{ error }}
+  </div>
+
+
+  <!-- ======================================================
+       CARGANDO
+       ====================================================== -->
+
+  <div
+    class="loading"
+    *ngIf="cargando"
+  >
+    Cargando tus postulaciones...
+  </div>
+
+
+  <!-- ======================================================
+       CANDIDATO
+       ====================================================== -->
+
+  <ng-container
+    *ngIf="
+      auth.usuario?.rol?.nombre === 'candidato'
+    "
+  >
+
+    <!-- SIN POSTULACIONES -->
+
+    <div
+      class="empty-state"
+      *ngIf="
+        !cargando &&
+        !error &&
+        postulaciones.length === 0
+      "
+    >
+
+      <div class="empty-icon">
+        ↗
+      </div>
+
+      <h2>
+        Todavía no tienes postulaciones
+      </h2>
+
+      <p>
+        Explora las oportunidades disponibles,
+        analiza tu compatibilidad y encuentra
+        una vacante adecuada para tu perfil.
+      </p>
+
+      <a
+        routerLink="/vacantes"
+        class="primary-link"
+      >
+        Explorar vacantes
+      </a>
+
+    </div>
+
+
+    <!-- ====================================================
+         LISTADO
+         ==================================================== -->
+
+    <div
+      class="applications-grid"
+      *ngIf="
+        !cargando &&
+        postulaciones.length > 0
+      "
+    >
+
+      <article
+        class="application-card"
+        *ngFor="
+          let postulacion of postulaciones
+        "
+      >
+
+        <!-- CABECERA -->
+
+        <div class="card-header">
+
+          <div>
+
+            <span class="company">
+              {{
+                postulacion
+                  .vacante
+                  .empresa
+                  .nombre
+              }}
+            </span>
+
+            <h2>
+              {{
+                postulacion
+                  .vacante
+                  .titulo
+              }}
+            </h2>
+
+          </div>
+
+
+          <span
+            class="status"
+            [ngClass]="
+              claseEstado(
+                postulacion.estado
+              )
+            "
+          >
+            {{ postulacion.estado }}
+          </span>
+
+        </div>
+
+
+        <!-- INFORMACIÓN DE LA VACANTE -->
+
+        <div class="vacancy-info">
+
+          <span>
+            📍
+            {{
+              postulacion
+                .vacante
+                .ubicacion ||
+              'Ubicación no especificada'
+            }}
+          </span>
+
+          <span>
+            💼
+            {{
+              postulacion
+                .vacante
+                .modalidad
+            }}
+          </span>
+
+        </div>
+
+
+        <!-- =================================================
+             RESULTADO IA
+             ================================================= -->
+
+        <div
+          class="ai-section"
+          *ngIf="
+            postulacion.puntuacion_ia !== null
+          "
+        >
+
+          <div class="ai-title">
+
+            <div>
+
+              <span class="label">
+                Compatibilidad IA
+              </span>
+
+              <strong class="score">
+                {{
+                  postulacion.puntuacion_ia
+                    | number:'1.0-1'
+                }}%
+              </strong>
+
+            </div>
+
+
+            <span class="ai-badge">
+              IA
+            </span>
+
+          </div>
+
+
+          <!-- BARRA -->
+
+          <div class="progress">
+
+            <div
+              class="progress-value"
+              [style.width.%]="
+                postulacion.puntuacion_ia
+              "
+            ></div>
+
+          </div>
+
+
+          <!-- MÉTRICAS -->
+
+          <div class="metrics">
+
+            <div class="metric">
+
+              <span>
+                Similitud textual
+              </span>
+
+              <strong>
+                {{
+                  (
+                    postulacion
+                      .similitud_texto ??
+                    0
+                  )
+                    | number:'1.0-1'
+                }}%
+              </strong>
+
+            </div>
+
+
+            <div class="metric">
+
+              <span>
+                Habilidades
+              </span>
+
+              <strong>
+                {{
+                  (
+                    postulacion
+                      .coincidencia_habilidades ??
+                    0
+                  )
+                    | number:'1.0-1'
+                }}%
+              </strong>
+
+            </div>
+
+          </div>
+
+
+          <!-- COINCIDENCIAS -->
+
+          <div class="skill-section">
+
+            <strong>
+              Coincidencias
+            </strong>
+
+
+            <div
+              class="skills"
+              *ngIf="
+                postulacion
+                  .habilidades_coincidentes
+                  ?.length
+              "
+            >
+
+              <span
+                class="skill match-skill"
+                *ngFor="
+                  let habilidad of
+                    postulacion
+                      .habilidades_coincidentes
+                "
+              >
+                ✓ {{ habilidad }}
+              </span>
+
+            </div>
+
+
+            <p
+              class="muted"
+              *ngIf="
+                !postulacion
+                  .habilidades_coincidentes
+                  ?.length
+              "
+            >
+              No se registraron coincidencias directas.
+            </p>
+
+          </div>
+
+
+          <!-- FALTANTES -->
+
+          <div class="skill-section">
+
+            <strong>
+              Por fortalecer
+            </strong>
+
+
+            <div
+              class="skills"
+              *ngIf="
+                postulacion
+                  .habilidades_faltantes
+                  ?.length
+              "
+            >
+
+              <span
+                class="skill missing-skill"
+                *ngFor="
+                  let habilidad of
+                    postulacion
+                      .habilidades_faltantes
+                "
+              >
+                {{ habilidad }}
+              </span>
+
+            </div>
+
+
+            <p
+              class="muted"
+              *ngIf="
+                !postulacion
+                  .habilidades_faltantes
+                  ?.length
+              "
+            >
+              No se identificaron habilidades faltantes.
+            </p>
+
+          </div>
+
+
+          <!-- EXPLICACIÓN -->
+
+          <div
+            class="explanation"
+            *ngIf="
+              postulacion.explicacion_ia
+            "
+          >
+
+            <strong>
+              Interpretación
+            </strong>
+
+            <p>
+              {{
+                postulacion
+                  .explicacion_ia
+              }}
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <!-- =================================================
+             INFORMACIÓN DEL PROCESO
+             ================================================= -->
+
+        <div class="process">
+
+          <span>
+            Postulación realizada
+          </span>
+
+          <strong>
+            {{
+              postulacion
+                .creada_en
+                | date:'dd/MM/yyyy'
+            }}
+          </strong>
+
+        </div>
+
+
+        <p class="disclaimer">
+
+          La puntuación de compatibilidad es una referencia
+          de apoyo y no representa una decisión automática
+          de contratación.
+
+        </p>
+
+      </article>
+
+    </div>
+
+  </ng-container>
+
+</section>

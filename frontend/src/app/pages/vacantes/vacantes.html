@@ -1,1 +1,867 @@
-<section class="panel"><div class="heading"><div><p class="eyebrow">OPORTUNIDADES PROFESIONALES</p><h1>Encuentra tu siguiente oportunidad</h1><p class="muted">Vacantes reales conectadas a PostgreSQL y análisis de compatibilidad.</p></div><span class="count">{{vacantes.length}} vacantes</span></div><p class="notice" [hidden]="!mensaje">{{mensaje}}</p><p class="error" [hidden]="!error">{{error}}</p><input class="search" [(ngModel)]="busqueda" placeholder="Buscar por título, descripción o ubicación..." aria-label="Buscar vacantes"><p *ngIf="cargando">Cargando oportunidades...</p><div class="job-grid"><article class="job" *ngFor="let v of filtradas"><div class="job-top"><span class="tag">{{v.modalidad}}</span><span class="tag muted-tag">{{v.estado}}</span></div><h2>{{v.titulo}}</h2><p>{{v.descripcion}}</p><p><strong>Requisitos:</strong> {{v.requisitos}}</p><p class="muted">Ubicación: {{v.ubicacion || 'No especificada'}} · Empresa #{{v.empresa_id}}</p><p class="salary" *ngIf="v.salario_min">{{v.salario_min | currency:'COP':'symbol-narrow':'1.0-0'}} — {{v.salario_max | currency:'COP':'symbol-narrow':'1.0-0'}}</p><div class="actions"><button *ngIf="auth.usuario?.rol==='candidato'" (click)="seleccion=v.id;analisis=null">Evaluar mi perfil</button><button *ngIf="gestiona" class="danger" (click)="eliminar(v.id)">Eliminar</button></div><div class="match" *ngIf="seleccion===v.id && auth.usuario?.rol==='candidato'"><label>Tu experiencia y habilidades<textarea [(ngModel)]="perfil" rows="4" placeholder="Ej. Soy desarrollador con experiencia en Angular, TypeScript y PostgreSQL..."></textarea></label><div class="actions"><button class="secondary" (click)="analizar(v.id)">Calcular compatibilidad</button><button (click)="postular(v.id)">Postularme</button></div><div *ngIf="analisis"><h3>Compatibilidad: {{analisis.puntuacion}}%</h3><p>Coincidencias: {{analisis.coincidencias.join(', ') || 'Ninguna'}}</p><p>Por mejorar: {{analisis.faltantes.join(', ') || 'Ninguna'}}</p><small>{{analisis.metodo}}</small></div></div></article></div><p *ngIf="!cargando && !filtradas.length">No se encontraron vacantes.</p></section><section class="panel" *ngIf="gestiona"><h2>Publicar una vacante</h2><form class="form-grid" (ngSubmit)="crear()"><label>Título<input name="titulo" [(ngModel)]="form.titulo" required minlength="3"></label><label>Empresa<select name="empresa_id" [(ngModel)]="form.empresa_id" required><option [ngValue]="null">Seleccionar empresa</option><option *ngFor="let e of empresas" [ngValue]="e.id">{{e.nombre}}</option></select></label><label class="full">Descripción<textarea name="descripcion" [(ngModel)]="form.descripcion" required minlength="10"></textarea></label><label class="full">Requisitos<textarea name="requisitos" [(ngModel)]="form.requisitos" required minlength="5"></textarea></label><label>Salario mínimo<input type="number" name="min" [(ngModel)]="form.salario_min"></label><label>Salario máximo<input type="number" name="max" [(ngModel)]="form.salario_max"></label><label>Modalidad<select name="modalidad" [(ngModel)]="form.modalidad"><option value="remoto">Remoto</option><option value="presencial">Presencial</option><option value="hibrido">Híbrido</option></select></label><label>Ubicación<input name="ubicacion" [(ngModel)]="form.ubicacion"></label><button>Publicar vacante</button></form></section>
+<!--
+============================================================
+TalentIA - Catálogo de vacantes
+Archivo: src/app/pages/vacantes/vacantes.html
+============================================================
+-->
+
+<section class="panel">
+
+  <!-- ======================================================
+       ENCABEZADO
+       ====================================================== -->
+
+  <div class="heading">
+
+    <div>
+
+      <p class="eyebrow">
+        OPORTUNIDADES PROFESIONALES
+      </p>
+
+      <h1>
+        Encuentra tu siguiente oportunidad
+      </h1>
+
+      <p class="muted">
+        Vacantes reales conectadas a PostgreSQL
+        con análisis inteligente de compatibilidad.
+      </p>
+
+    </div>
+
+
+    <span class="count">
+      {{ vacantes.length }}
+      {{ vacantes.length === 1 ? 'vacante' : 'vacantes' }}
+    </span>
+
+  </div>
+
+
+  <!-- ======================================================
+       MENSAJES
+       ====================================================== -->
+
+  <div
+    class="notice"
+    *ngIf="mensaje"
+  >
+    {{ mensaje }}
+  </div>
+
+
+  <div
+    class="error"
+    *ngIf="error"
+  >
+    {{ error }}
+  </div>
+
+
+  <!-- ======================================================
+       BUSCADOR
+       ====================================================== -->
+
+  <div class="search-container">
+
+    <input
+      class="search"
+      type="search"
+      [(ngModel)]="busqueda"
+      placeholder="Buscar por título, empresa, descripción o ubicación..."
+      aria-label="Buscar vacantes"
+    >
+
+  </div>
+
+
+  <!-- ======================================================
+       CARGANDO
+       ====================================================== -->
+
+  <div
+    class="loading"
+    *ngIf="cargando"
+  >
+    Cargando oportunidades...
+  </div>
+
+
+  <!-- ======================================================
+       VACANTES
+       ====================================================== -->
+
+  <div
+    class="job-grid"
+    *ngIf="!cargando"
+  >
+
+    <article
+      class="job"
+      *ngFor="let v of filtradas"
+    >
+
+      <!-- ETIQUETAS -->
+
+      <div class="job-top">
+
+        <span class="tag">
+          {{ v.modalidad }}
+        </span>
+
+        <span class="tag muted-tag">
+          {{ v.estado }}
+        </span>
+
+      </div>
+
+
+      <!-- INFORMACIÓN -->
+
+      <h2>
+        {{ v.titulo }}
+      </h2>
+
+
+      <p class="company">
+        {{ v.empresa.nombre }}
+      </p>
+
+
+      <p>
+        {{ v.descripcion }}
+      </p>
+
+
+      <p>
+        <strong>
+          Requisitos:
+        </strong>
+
+        {{ v.requisitos }}
+      </p>
+
+
+      <div class="job-meta">
+
+        <span>
+          📍
+          {{
+            v.ubicacion ||
+            v.empresa.ciudad ||
+            'Ubicación no especificada'
+          }}
+        </span>
+
+        <span>
+          💼
+          {{ v.tipo_contrato }}
+        </span>
+
+        <span>
+          ⏱
+          {{ v.experiencia_minima }}
+          año(s) de experiencia
+        </span>
+
+      </div>
+
+
+      <!-- SALARIO -->
+
+      <p
+        class="salary"
+        *ngIf="
+          v.salario_min !== null ||
+          v.salario_max !== null
+        "
+      >
+
+        <ng-container
+          *ngIf="
+            v.salario_min !== null
+          "
+        >
+          {{
+            v.salario_min
+              | currency:
+                'COP':
+                'symbol-narrow':
+                '1.0-0'
+          }}
+        </ng-container>
+
+
+        <span
+          *ngIf="
+            v.salario_min !== null &&
+            v.salario_max !== null
+          "
+        >
+          —
+        </span>
+
+
+        <ng-container
+          *ngIf="
+            v.salario_max !== null
+          "
+        >
+          {{
+            v.salario_max
+              | currency:
+                'COP':
+                'symbol-narrow':
+                '1.0-0'
+          }}
+        </ng-container>
+
+      </p>
+
+
+      <!-- HABILIDADES -->
+
+      <div
+        class="skills"
+        *ngIf="v.habilidades.length"
+      >
+
+        <span
+          class="skill"
+          *ngFor="
+            let relacion of v.habilidades
+          "
+        >
+          {{ relacion.habilidad.nombre }}
+        </span>
+
+      </div>
+
+
+      <!-- ==================================================
+           ACCIONES
+           ================================================== -->
+
+      <div class="actions">
+
+        <button
+          type="button"
+          *ngIf="esCandidato"
+          (click)="seleccionarParaAnalisis(v.id)"
+        >
+          Evaluar mi perfil
+        </button>
+
+
+        <button
+          type="button"
+          class="danger"
+          *ngIf="gestiona"
+          (click)="cerrar(v.id)"
+        >
+          Cerrar vacante
+        </button>
+
+      </div>
+
+
+      <!-- ==================================================
+           ANÁLISIS IA
+           ================================================== -->
+
+      <div
+        class="match"
+        *ngIf="
+          seleccion === v.id &&
+          esCandidato
+        "
+      >
+
+        <div class="match-header">
+
+          <div>
+
+            <p class="eyebrow">
+              ANÁLISIS INTELIGENTE
+            </p>
+
+            <h3>
+              Evalúa tu compatibilidad
+            </h3>
+
+          </div>
+
+          <span class="ai-badge">
+            IA
+          </span>
+
+        </div>
+
+
+        <label>
+
+          Tu experiencia y habilidades
+
+          <textarea
+            [(ngModel)]="perfil"
+            rows="5"
+            placeholder="Ej. Soy desarrollador frontend con experiencia en Angular, TypeScript, APIs REST y PostgreSQL..."
+          ></textarea>
+
+        </label>
+
+
+        <p class="analysis-help">
+          TalentIA compara tu perfil con la descripción,
+          requisitos y habilidades de esta vacante.
+        </p>
+
+
+        <div class="actions">
+
+          <button
+            type="button"
+            class="secondary"
+            [disabled]="analizando"
+            (click)="analizar(v.id)"
+          >
+            {{
+              analizando
+                ? 'Analizando...'
+                : 'Calcular compatibilidad'
+            }}
+          </button>
+
+
+          <button
+            type="button"
+            [disabled]="postulando"
+            (click)="postular(v.id)"
+          >
+            {{
+              postulando
+                ? 'Postulando...'
+                : 'Postularme'
+            }}
+          </button>
+
+        </div>
+
+
+        <!-- ================================================
+             RESULTADO IA
+             ================================================ -->
+
+        <div
+          class="analysis-result"
+          *ngIf="analisis"
+        >
+
+          <div class="score-header">
+
+            <div>
+
+              <span class="score-label">
+                Compatibilidad estimada
+              </span>
+
+              <strong class="score">
+                {{
+                  analisis.puntuacion
+                    | number:'1.0-1'
+                }}%
+              </strong>
+
+            </div>
+
+
+            <span class="classification">
+              {{
+                analisis.clasificacion
+                  .replace('_', ' ')
+              }}
+            </span>
+
+          </div>
+
+
+          <!-- BARRA DE COMPATIBILIDAD -->
+
+          <div class="progress">
+
+            <div
+              class="progress-value"
+              [style.width.%]="
+                analisis.puntuacion
+              "
+            ></div>
+
+          </div>
+
+
+          <!-- MÉTRICAS -->
+
+          <div class="metrics">
+
+            <div class="metric">
+
+              <span>
+                Similitud textual
+              </span>
+
+              <strong>
+                {{
+                  analisis.similitud_texto
+                    | number:'1.0-1'
+                }}%
+              </strong>
+
+            </div>
+
+
+            <div class="metric">
+
+              <span>
+                Coincidencia de habilidades
+              </span>
+
+              <strong>
+                {{
+                  analisis.coincidencia_habilidades
+                    | number:'1.0-1'
+                }}%
+              </strong>
+
+            </div>
+
+          </div>
+
+
+          <!-- COINCIDENCIAS -->
+
+          <div class="analysis-block">
+
+            <strong>
+              Habilidades coincidentes
+            </strong>
+
+
+            <div
+              class="skills"
+              *ngIf="
+                analisis
+                  .habilidades_coincidentes
+                  .length
+              "
+            >
+
+              <span
+                class="skill success-skill"
+                *ngFor="
+                  let habilidad of
+                    analisis.habilidades_coincidentes
+                "
+              >
+                ✓ {{ habilidad }}
+              </span>
+
+            </div>
+
+
+            <p
+              class="muted"
+              *ngIf="
+                !analisis
+                  .habilidades_coincidentes
+                  .length
+              "
+            >
+              No se detectaron coincidencias directas.
+            </p>
+
+          </div>
+
+
+          <!-- FALTANTES -->
+
+          <div class="analysis-block">
+
+            <strong>
+              Habilidades por fortalecer
+            </strong>
+
+
+            <div
+              class="skills"
+              *ngIf="
+                analisis
+                  .habilidades_faltantes
+                  .length
+              "
+            >
+
+              <span
+                class="skill missing-skill"
+                *ngFor="
+                  let habilidad of
+                    analisis.habilidades_faltantes
+                "
+              >
+                {{ habilidad }}
+              </span>
+
+            </div>
+
+
+            <p
+              class="muted"
+              *ngIf="
+                !analisis
+                  .habilidades_faltantes
+                  .length
+              "
+            >
+              No se identificaron habilidades faltantes.
+            </p>
+
+          </div>
+
+
+          <!-- EXPLICACIÓN -->
+
+          <div class="explanation">
+
+            <strong>
+              Interpretación del resultado
+            </strong>
+
+            <p>
+              {{ analisis.explicacion }}
+            </p>
+
+          </div>
+
+
+          <p class="disclaimer">
+            El resultado es orientativo y sirve como apoyo.
+            No representa una decisión automática de
+            contratación.
+          </p>
+
+        </div>
+
+      </div>
+
+    </article>
+
+  </div>
+
+
+  <!-- SIN RESULTADOS -->
+
+  <div
+    class="empty-state"
+    *ngIf="
+      !cargando &&
+      !filtradas.length
+    "
+  >
+
+    <strong>
+      No encontramos vacantes
+    </strong>
+
+    <p>
+      Prueba utilizando otro término de búsqueda.
+    </p>
+
+  </div>
+
+</section>
+
+
+<!-- ========================================================
+     PANEL DE PUBLICACIÓN
+     ======================================================== -->
+
+<section
+  class="panel admin-panel"
+  *ngIf="gestiona"
+>
+
+  <div class="heading">
+
+    <div>
+
+      <p class="eyebrow">
+        GESTIÓN DE RECLUTAMIENTO
+      </p>
+
+      <h2>
+        Publicar una vacante
+      </h2>
+
+      <p class="muted">
+        Registra una nueva oportunidad laboral en TalentIA.
+      </p>
+
+    </div>
+
+  </div>
+
+
+  <form
+    class="form-grid"
+    (ngSubmit)="crear()"
+  >
+
+    <!-- TÍTULO -->
+
+    <label>
+
+      Título
+
+      <input
+        name="titulo"
+        [(ngModel)]="form.titulo"
+        required
+        minlength="3"
+        placeholder="Ej. Desarrollador Angular Junior"
+      >
+
+    </label>
+
+
+    <!-- EMPRESA -->
+
+    <label>
+
+      Empresa
+
+      <select
+        name="empresa_id"
+        [(ngModel)]="form.empresa_id"
+        [disabled]="
+          auth.usuario?.rol?.nombre ===
+          'reclutador'
+        "
+      >
+
+        <option [ngValue]="null">
+          Seleccionar empresa
+        </option>
+
+
+        <option
+          *ngFor="let e of empresas"
+          [ngValue]="e.id"
+        >
+          {{ e.nombre }}
+        </option>
+
+      </select>
+
+    </label>
+
+
+    <!-- DESCRIPCIÓN -->
+
+    <label class="full">
+
+      Descripción
+
+      <textarea
+        name="descripcion"
+        [(ngModel)]="form.descripcion"
+        required
+        minlength="10"
+        rows="4"
+        placeholder="Describe el propósito general de la posición..."
+      ></textarea>
+
+    </label>
+
+
+    <!-- REQUISITOS -->
+
+    <label class="full">
+
+      Requisitos
+
+      <textarea
+        name="requisitos"
+        [(ngModel)]="form.requisitos"
+        required
+        minlength="5"
+        rows="4"
+        placeholder="Ej. Angular, TypeScript, APIs REST..."
+      ></textarea>
+
+    </label>
+
+
+    <!-- RESPONSABILIDADES -->
+
+    <label class="full">
+
+      Responsabilidades
+
+      <textarea
+        name="responsabilidades"
+        [(ngModel)]="form.responsabilidades"
+        rows="3"
+        placeholder="Principales funciones de la posición..."
+      ></textarea>
+
+    </label>
+
+
+    <!-- SALARIO -->
+
+    <label>
+
+      Salario mínimo
+
+      <input
+        type="number"
+        name="salario_min"
+        [(ngModel)]="form.salario_min"
+        min="0"
+        placeholder="3000000"
+      >
+
+    </label>
+
+
+    <label>
+
+      Salario máximo
+
+      <input
+        type="number"
+        name="salario_max"
+        [(ngModel)]="form.salario_max"
+        min="0"
+        placeholder="5000000"
+      >
+
+    </label>
+
+
+    <!-- MODALIDAD -->
+
+    <label>
+
+      Modalidad
+
+      <select
+        name="modalidad"
+        [(ngModel)]="form.modalidad"
+      >
+
+        <option value="remoto">
+          Remoto
+        </option>
+
+        <option value="presencial">
+          Presencial
+        </option>
+
+        <option value="hibrido">
+          Híbrido
+        </option>
+
+      </select>
+
+    </label>
+
+
+    <!-- CONTRATO -->
+
+    <label>
+
+      Tipo de contrato
+
+      <select
+        name="tipo_contrato"
+        [(ngModel)]="form.tipo_contrato"
+      >
+
+        <option value="tiempo_completo">
+          Tiempo completo
+        </option>
+
+        <option value="medio_tiempo">
+          Medio tiempo
+        </option>
+
+        <option value="prestacion_servicios">
+          Prestación de servicios
+        </option>
+
+        <option value="practicas">
+          Prácticas
+        </option>
+
+        <option value="temporal">
+          Temporal
+        </option>
+
+      </select>
+
+    </label>
+
+
+    <!-- UBICACIÓN -->
+
+    <label>
+
+      Ubicación
+
+      <input
+        name="ubicacion"
+        [(ngModel)]="form.ubicacion"
+        placeholder="Ej. Bucaramanga"
+      >
+
+    </label>
+
+
+    <!-- EXPERIENCIA -->
+
+    <label>
+
+      Experiencia mínima
+
+      <input
+        type="number"
+        name="experiencia_minima"
+        [(ngModel)]="form.experiencia_minima"
+        min="0"
+        step="1"
+      >
+
+    </label>
+
+
+    <!-- ENVIAR -->
+
+    <div class="full">
+
+      <button
+        type="submit"
+        [disabled]="publicando"
+      >
+        {{
+          publicando
+            ? 'Publicando...'
+            : 'Publicar vacante'
+        }}
+      </button>
+
+    </div>
+
+  </form>
+
+</section>

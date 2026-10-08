@@ -1,0 +1,507 @@
+<!--
+============================================================
+TalentIA - Perfil profesional
+Archivo: src/app/pages/perfil/perfil.html
+============================================================
+-->
+
+<section class="profile-page">
+
+  <!-- ======================================================
+       HEADER
+       ====================================================== -->
+
+  <header class="profile-header">
+
+    <div>
+
+      <p class="eyebrow">
+        PERFIL PROFESIONAL
+      </p>
+
+      <h1>
+        Tu perfil de candidato
+      </h1>
+
+      <p>
+        Mantén actualizada tu experiencia y habilidades para
+        obtener análisis de compatibilidad más representativos.
+      </p>
+
+    </div>
+
+
+    <a
+      routerLink="/vacantes"
+      class="back-link"
+    >
+      Ver vacantes
+    </a>
+
+  </header>
+
+
+  <!-- ======================================================
+       MENSAJES
+       ====================================================== -->
+
+  <div
+    class="success-message"
+    *ngIf="mensaje"
+  >
+    {{ mensaje }}
+  </div>
+
+
+  <div
+    class="error-message"
+    *ngIf="error"
+  >
+    {{ error }}
+  </div>
+
+
+  <!-- ======================================================
+       CARGANDO
+       ====================================================== -->
+
+  <div
+    class="loading"
+    *ngIf="cargando"
+  >
+    Cargando perfil...
+  </div>
+
+
+  <!-- ======================================================
+       CONTENIDO
+       ====================================================== -->
+
+  <div
+    class="profile-layout"
+    *ngIf="!cargando"
+  >
+
+    <!-- ====================================================
+         INFORMACIÓN PERSONAL
+         ==================================================== -->
+
+    <section class="card">
+
+      <div class="card-heading">
+
+        <div class="step">
+          01
+        </div>
+
+        <div>
+
+          <h2>
+            Información personal
+          </h2>
+
+          <p>
+            Datos básicos visibles en tu perfil.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <div class="form-grid">
+
+        <label>
+
+          Nombre
+
+          <input
+            [(ngModel)]="form.nombre"
+            name="nombre"
+            placeholder="Nombre"
+          >
+
+        </label>
+
+
+        <label>
+
+          Apellido
+
+          <input
+            [(ngModel)]="form.apellido"
+            name="apellido"
+            placeholder="Apellido"
+          >
+
+        </label>
+
+
+        <label>
+
+          Teléfono
+
+          <input
+            [(ngModel)]="form.telefono"
+            name="telefono"
+            placeholder="Ej. 300 000 0000"
+          >
+
+        </label>
+
+
+        <label>
+
+          Ciudad
+
+          <input
+            [(ngModel)]="form.ciudad"
+            name="ciudad"
+            placeholder="Ej. Bucaramanga"
+          >
+
+        </label>
+
+
+        <label>
+
+          Experiencia total
+
+          <div class="input-suffix">
+
+            <input
+              type="number"
+              [(ngModel)]="
+                form.experiencia_anios
+              "
+              name="experiencia_anios"
+              min="0"
+              step="1"
+            >
+
+            <span>
+              años
+            </span>
+
+          </div>
+
+        </label>
+
+      </div>
+
+    </section>
+
+
+    <!-- ====================================================
+         PERFIL PROFESIONAL
+         ==================================================== -->
+
+    <section class="card">
+
+      <div class="card-heading">
+
+        <div class="step">
+          02
+        </div>
+
+        <div>
+
+          <h2>
+            Perfil profesional
+          </h2>
+
+          <p>
+            Describe tu experiencia, tecnologías y fortalezas.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <label class="professional-profile">
+
+        Descripción profesional
+
+        <textarea
+          [(ngModel)]="
+            form.perfil_profesional
+          "
+          name="perfil_profesional"
+          rows="8"
+          placeholder="Ej. Desarrollador frontend con experiencia en Angular, TypeScript, consumo de APIs REST y PostgreSQL..."
+        ></textarea>
+
+      </label>
+
+
+      <div class="tip">
+
+        <strong>
+          Consejo para el análisis inteligente
+        </strong>
+
+        <p>
+          Describe tecnologías, responsabilidades,
+          experiencia y áreas de conocimiento relevantes.
+          El motor compara este contenido con cada vacante
+          utilizando TF-IDF y similitud coseno.
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <!-- ====================================================
+         HABILIDADES
+         ==================================================== -->
+
+    <section class="card full-card">
+
+      <div class="card-heading">
+
+        <div class="step">
+          03
+        </div>
+
+        <div>
+
+          <h2>
+            Habilidades
+          </h2>
+
+          <p>
+            Registra tus principales competencias técnicas
+            y profesionales.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <!-- AGREGAR -->
+
+      <div class="add-skill">
+
+        <input
+          [(ngModel)]="nuevaHabilidad"
+          name="nuevaHabilidad"
+          placeholder="Ej. Angular, Python, PostgreSQL..."
+          (keyup.enter)="agregarHabilidad()"
+        >
+
+
+        <button
+          type="button"
+          (click)="agregarHabilidad()"
+        >
+          Agregar
+        </button>
+
+      </div>
+
+
+      <!-- SUGERENCIAS -->
+
+      <div
+        class="suggestions"
+        *ngIf="
+          catalogoHabilidades.length
+        "
+      >
+
+        <span class="suggestions-label">
+          Sugerencias:
+        </span>
+
+
+        <button
+          type="button"
+          class="suggestion"
+          *ngFor="
+            let habilidad of
+              catalogoHabilidades
+                .slice(0, 12)
+          "
+          (click)="
+            seleccionarDelCatalogo(
+              habilidad.nombre
+            )
+          "
+        >
+          + {{ habilidad.nombre }}
+        </button>
+
+      </div>
+
+
+      <!-- LISTA -->
+
+      <div
+        class="skills-list"
+        *ngIf="habilidades.length"
+      >
+
+        <article
+          class="skill-row"
+          *ngFor="
+            let habilidad of habilidades;
+            let i = index
+          "
+        >
+
+          <div class="skill-name">
+
+            <span class="skill-icon">
+              ✓
+            </span>
+
+            <strong>
+              {{ habilidad.nombre }}
+            </strong>
+
+          </div>
+
+
+          <label>
+
+            Nivel
+
+            <select
+              [(ngModel)]="
+                habilidad.nivel
+              "
+              [name]="
+                'nivel-' + i
+              "
+            >
+
+              <option value="basico">
+                Básico
+              </option>
+
+              <option value="intermedio">
+                Intermedio
+              </option>
+
+              <option value="avanzado">
+                Avanzado
+              </option>
+
+              <option value="experto">
+                Experto
+              </option>
+
+            </select>
+
+          </label>
+
+
+          <label>
+
+            Experiencia
+
+            <div class="input-suffix">
+
+              <input
+                type="number"
+                [(ngModel)]="
+                  habilidad
+                    .experiencia_anios
+                "
+                [name]="
+                  'experiencia-' + i
+                "
+                min="0"
+                step="1"
+              >
+
+              <span>
+                años
+              </span>
+
+            </div>
+
+          </label>
+
+
+          <button
+            type="button"
+            class="delete-button"
+            (click)="
+              eliminarHabilidad(i)
+            "
+          >
+            Quitar
+          </button>
+
+        </article>
+
+      </div>
+
+
+      <!-- SIN HABILIDADES -->
+
+      <div
+        class="empty-skills"
+        *ngIf="
+          habilidades.length === 0
+        "
+      >
+
+        <strong>
+          Aún no has agregado habilidades.
+        </strong>
+
+        <p>
+          Añade algunas competencias para mejorar el análisis
+          de compatibilidad con las vacantes.
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <!-- ====================================================
+         GUARDAR
+         ==================================================== -->
+
+    <section class="save-section">
+
+      <div>
+
+        <strong>
+          Guarda tus cambios
+        </strong>
+
+        <p>
+          Las próximas evaluaciones utilizarán la información
+          actualizada de tu perfil.
+        </p>
+
+      </div>
+
+
+      <button
+        type="button"
+        class="save-button"
+        [disabled]="guardando"
+        (click)="guardar()"
+      >
+
+        {{
+          guardando
+            ? 'Guardando...'
+            : 'Guardar perfil'
+        }}
+
+      </button>
+
+    </section>
+
+  </div>
+
+</section>

@@ -1,0 +1,790 @@
+<!--
+============================================================
+TalentIA - Panel del reclutador
+Archivo: src/app/pages/reclutador/reclutador.html
+============================================================
+-->
+
+<section class="dashboard">
+
+  <!-- ======================================================
+       ENCABEZADO
+       ====================================================== -->
+
+  <header class="dashboard-header">
+
+    <div>
+
+      <p class="eyebrow">
+        TALENTIA · RECLUTAMIENTO
+      </p>
+
+      <h1>
+        Panel de reclutamiento
+      </h1>
+
+      <p class="subtitle">
+        Gestiona candidatos y utiliza el análisis de
+        compatibilidad como apoyo para la toma de decisiones.
+      </p>
+
+    </div>
+
+
+    <a
+      routerLink="/vacantes"
+      class="vacancy-link"
+    >
+      Gestionar vacantes
+    </a>
+
+  </header>
+
+
+  <!-- ======================================================
+       ERROR / MENSAJE
+       ====================================================== -->
+
+  <div
+    class="error-message"
+    *ngIf="error"
+  >
+    {{ error }}
+  </div>
+
+
+  <div
+    class="success-message"
+    *ngIf="mensaje"
+  >
+    {{ mensaje }}
+  </div>
+
+
+  <!-- ======================================================
+       SIN PERMISOS
+       ====================================================== -->
+
+  <div
+    class="empty-state"
+    *ngIf="!puedeGestionar"
+  >
+
+    <div class="empty-icon">
+      !
+    </div>
+
+    <h2>
+      Acceso restringido
+    </h2>
+
+    <p>
+      Este panel está disponible únicamente para
+      administradores y reclutadores.
+    </p>
+
+    <a routerLink="/vacantes">
+      Volver a vacantes
+    </a>
+
+  </div>
+
+
+  <!-- ======================================================
+       PANEL AUTORIZADO
+       ====================================================== -->
+
+  <ng-container
+    *ngIf="puedeGestionar"
+  >
+
+    <!-- ====================================================
+         SELECCIÓN DE VACANTE
+         ==================================================== -->
+
+    <section class="selector-card">
+
+      <div>
+
+        <span class="selector-label">
+          VACANTE A ANALIZAR
+        </span>
+
+        <h2>
+          Ranking de candidatos
+        </h2>
+
+      </div>
+
+
+      <div class="selector-wrapper">
+
+        <select
+          [(ngModel)]="vacanteSeleccionadaId"
+          (ngModelChange)="cambiarVacante()"
+          [disabled]="
+            cargandoVacantes ||
+            vacantes.length === 0
+          "
+        >
+
+          <option
+            [ngValue]="null"
+          >
+            Seleccionar vacante
+          </option>
+
+
+          <option
+            *ngFor="let vacante of vacantes"
+            [ngValue]="vacante.id"
+          >
+            {{ vacante.titulo }}
+            ·
+            {{ vacante.empresa.nombre }}
+          </option>
+
+        </select>
+
+      </div>
+
+    </section>
+
+
+    <!-- ====================================================
+         CARGANDO VACANTES
+         ==================================================== -->
+
+    <div
+      class="loading"
+      *ngIf="cargandoVacantes"
+    >
+      Cargando vacantes...
+    </div>
+
+
+    <!-- ====================================================
+         SIN VACANTES
+         ==================================================== -->
+
+    <div
+      class="empty-state"
+      *ngIf="
+        !cargandoVacantes &&
+        vacantes.length === 0
+      "
+    >
+
+      <div class="empty-icon">
+        +
+      </div>
+
+      <h2>
+        No tienes vacantes disponibles
+      </h2>
+
+      <p>
+        Publica una oportunidad laboral para comenzar
+        a recibir candidatos.
+      </p>
+
+      <a routerLink="/vacantes">
+        Publicar vacante
+      </a>
+
+    </div>
+
+
+    <!-- ====================================================
+         INFORMACIÓN VACANTE
+         ==================================================== -->
+
+    <section
+      class="vacancy-summary"
+      *ngIf="vacanteSeleccionada"
+    >
+
+      <div>
+
+        <span class="company">
+          {{
+            vacanteSeleccionada
+              ?.empresa
+              ?.nombre
+          }}
+        </span>
+
+        <h2>
+          {{
+            vacanteSeleccionada
+              ?.titulo
+          }}
+        </h2>
+
+
+        <div class="vacancy-meta">
+
+          <span>
+            📍
+            {{
+              vacanteSeleccionada
+                ?.ubicacion ||
+              'Sin ubicación'
+            }}
+          </span>
+
+          <span>
+            💼
+            {{
+              vacanteSeleccionada
+                ?.modalidad
+            }}
+          </span>
+
+          <span>
+            Estado:
+            {{
+              vacanteSeleccionada
+                ?.estado
+            }}
+          </span>
+
+        </div>
+
+      </div>
+
+
+      <div class="ai-explanation">
+
+        <span class="ai-icon">
+          IA
+        </span>
+
+        <p>
+          El ranking ordena candidatos por compatibilidad
+          calculada mediante habilidades ponderadas,
+          TF-IDF y similitud coseno.
+        </p>
+
+      </div>
+
+    </section>
+
+
+    <!-- ====================================================
+         ESTADÍSTICAS
+         ==================================================== -->
+
+    <section
+      class="stats"
+      *ngIf="
+        vacanteSeleccionadaId !== null
+      "
+    >
+
+      <article class="stat-card">
+
+        <span>
+          Candidatos
+        </span>
+
+        <strong>
+          {{ totalCandidatos }}
+        </strong>
+
+        <small>
+          postulaciones
+        </small>
+
+      </article>
+
+
+      <article class="stat-card">
+
+        <span>
+          Compatibilidad promedio
+        </span>
+
+        <strong>
+          {{
+            promedioCompatibilidad
+              | number:'1.0-1'
+          }}%
+        </strong>
+
+        <small>
+          estimación IA
+        </small>
+
+      </article>
+
+
+      <article class="stat-card">
+
+        <span>
+          En entrevista
+        </span>
+
+        <strong>
+          {{ totalEntrevistas }}
+        </strong>
+
+        <small>
+          avanzaron en el proceso
+        </small>
+
+      </article>
+
+
+      <article class="stat-card">
+
+        <span>
+          Seleccionados
+        </span>
+
+        <strong>
+          {{ totalSeleccionados }}
+        </strong>
+
+        <small>
+          resultado del proceso
+        </small>
+
+      </article>
+
+    </section>
+
+
+    <!-- ====================================================
+         CARGANDO RANKING
+         ==================================================== -->
+
+    <div
+      class="loading"
+      *ngIf="cargandoRanking"
+    >
+      Analizando candidatos...
+    </div>
+
+
+    <!-- ====================================================
+         SIN CANDIDATOS
+         ==================================================== -->
+
+    <div
+      class="empty-state"
+      *ngIf="
+        vacanteSeleccionadaId !== null &&
+        !cargandoRanking &&
+        ranking.length === 0
+      "
+    >
+
+      <div class="empty-icon">
+        0
+      </div>
+
+      <h2>
+        Esta vacante todavía no tiene candidatos
+      </h2>
+
+      <p>
+        Cuando un candidato se postule, TalentIA calculará
+        y almacenará automáticamente su compatibilidad.
+      </p>
+
+    </div>
+
+
+    <!-- ====================================================
+         RANKING
+         ==================================================== -->
+
+    <section
+      class="ranking"
+      *ngIf="
+        !cargandoRanking &&
+        ranking.length > 0
+      "
+    >
+
+      <div class="ranking-header">
+
+        <div>
+
+          <p class="eyebrow">
+            COMPATIBILIDAD
+          </p>
+
+          <h2>
+            Ranking inteligente
+          </h2>
+
+        </div>
+
+
+        <span class="ranking-note">
+          Mayor compatibilidad primero
+        </span>
+
+      </div>
+
+
+      <!-- ==================================================
+           CANDIDATO
+           ================================================== -->
+
+      <article
+        class="candidate-card"
+        *ngFor="
+          let candidato of ranking;
+          let i = index
+        "
+      >
+
+        <!-- POSICIÓN -->
+
+        <div
+          class="position"
+          [class.top-position]="
+            i === 0
+          "
+        >
+          #{{ posicion(i) }}
+        </div>
+
+
+        <!-- ================================================
+             IDENTIDAD
+             ================================================ -->
+
+        <div class="candidate-main">
+
+          <div class="candidate-heading">
+
+            <div>
+
+              <h3>
+                {{ candidato.nombre }}
+              </h3>
+
+              <p>
+                {{ candidato.email }}
+              </p>
+
+            </div>
+
+
+            <span
+              class="status"
+              [ngClass]="
+                claseEstado(
+                  candidato.estado
+                )
+              "
+            >
+              {{ candidato.estado }}
+            </span>
+
+          </div>
+
+
+          <!-- ==============================================
+               SCORE
+               ============================================== -->
+
+          <div class="score-section">
+
+            <div class="score-main">
+
+              <div>
+
+                <span>
+                  Compatibilidad TalentIA
+                </span>
+
+                <strong>
+                  {{
+                    (
+                      candidato
+                        .puntuacion_ia ??
+                      0
+                    )
+                      | number:'1.0-1'
+                  }}%
+                </strong>
+
+              </div>
+
+
+              <span class="classification">
+                {{
+                  clasificacion(
+                    candidato.puntuacion_ia
+                  )
+                }}
+              </span>
+
+            </div>
+
+
+            <div class="progress">
+
+              <div
+                class="progress-value"
+                [style.width.%]="
+                  candidato.puntuacion_ia ??
+                  0
+                "
+              ></div>
+
+            </div>
+
+          </div>
+
+
+          <!-- ==============================================
+               MÉTRICAS
+               ============================================== -->
+
+          <div class="metrics">
+
+            <div class="metric">
+
+              <span>
+                Similitud textual
+              </span>
+
+              <strong>
+                {{
+                  (
+                    candidato
+                      .similitud_texto ??
+                    0
+                  )
+                    | number:'1.0-1'
+                }}%
+              </strong>
+
+            </div>
+
+
+            <div class="metric">
+
+              <span>
+                Coincidencia de habilidades
+              </span>
+
+              <strong>
+                {{
+                  (
+                    candidato
+                      .coincidencia_habilidades ??
+                    0
+                  )
+                    | number:'1.0-1'
+                }}%
+              </strong>
+
+            </div>
+
+          </div>
+
+
+          <!-- ==============================================
+               HABILIDADES
+               ============================================== -->
+
+          <div class="skills-columns">
+
+            <div>
+
+              <strong class="section-title">
+                Coincidencias
+              </strong>
+
+
+              <div
+                class="skills"
+                *ngIf="
+                  candidato
+                    .habilidades_coincidentes
+                    ?.length
+                "
+              >
+
+                <span
+                  class="skill skill-match"
+                  *ngFor="
+                    let habilidad of
+                      candidato
+                        .habilidades_coincidentes
+                  "
+                >
+                  ✓ {{ habilidad }}
+                </span>
+
+              </div>
+
+
+              <p
+                class="muted"
+                *ngIf="
+                  !candidato
+                    .habilidades_coincidentes
+                    ?.length
+                "
+              >
+                Sin coincidencias directas.
+              </p>
+
+            </div>
+
+
+            <div>
+
+              <strong class="section-title">
+                Por fortalecer
+              </strong>
+
+
+              <div
+                class="skills"
+                *ngIf="
+                  candidato
+                    .habilidades_faltantes
+                    ?.length
+                "
+              >
+
+                <span
+                  class="skill skill-missing"
+                  *ngFor="
+                    let habilidad of
+                      candidato
+                        .habilidades_faltantes
+                  "
+                >
+                  {{ habilidad }}
+                </span>
+
+              </div>
+
+
+              <p
+                class="muted"
+                *ngIf="
+                  !candidato
+                    .habilidades_faltantes
+                    ?.length
+                "
+              >
+                No hay habilidades faltantes.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <!-- ==============================================
+               EXPLICACIÓN
+               ============================================== -->
+
+          <div
+            class="explanation"
+            *ngIf="
+              candidato.explicacion_ia
+            "
+          >
+
+            <strong>
+              Interpretación
+            </strong>
+
+            <p>
+              {{ candidato.explicacion_ia }}
+            </p>
+
+          </div>
+
+
+          <!-- ==============================================
+               GESTIÓN DEL PROCESO
+               ============================================== -->
+
+          <div class="process-control">
+
+            <div>
+
+              <strong>
+                Estado del proceso
+              </strong>
+
+              <p>
+                La decisión final permanece bajo
+                responsabilidad del reclutador.
+              </p>
+
+            </div>
+
+
+            <select
+              [ngModel]="candidato.estado"
+              (ngModelChange)="
+                cambiarEstado(
+                  candidato,
+                  $event
+                )
+              "
+              [disabled]="
+                actualizandoPostulacion ===
+                candidato.postulacion_id
+              "
+            >
+
+              <option
+                *ngFor="
+                  let estado of
+                    estadosDisponibles(
+                      candidato.estado
+                    )
+                "
+                [ngValue]="estado"
+              >
+                {{ estado }}
+              </option>
+
+            </select>
+
+          </div>
+
+        </div>
+
+      </article>
+
+
+      <!-- ==================================================
+           AVISO ÉTICO
+           ================================================== -->
+
+      <div class="ethical-note">
+
+        <strong>
+          Uso responsable de IA
+        </strong>
+
+        <p>
+          La puntuación se utiliza únicamente como herramienta
+          de apoyo para organizar y comparar perfiles.
+          TalentIA no contrata, rechaza ni selecciona
+          automáticamente a ninguna persona.
+        </p>
+
+      </div>
+
+    </section>
+
+  </ng-container>
+
+</section>
