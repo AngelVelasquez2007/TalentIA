@@ -4,41 +4,23 @@
  * Archivo: src/app/services/auth.ts
  * ============================================================
  *
- * Este servicio centraliza todo lo relacionado con:
- *
+ * Gestiona:
  * - registro;
  * - login;
  * - JWT;
  * - usuario autenticado;
+ * - restauración de sesión;
  * - roles;
- * - cierre de sesión.
+ * - logout.
  *
- * FLUJO:
- *
- * Angular
- *    |
- *    | email + password
- *    v
- * POST /auth/login
- *    |
- *    v
- * FastAPI
- *    |
- *    v
- * JWT
- *    |
- *    v
- * sessionStorage
- *
- * Posteriormente el interceptor HTTP agregará:
- *
- * Authorization: Bearer TOKEN
- *
- * a las peticiones protegidas.
+ * La validación real del JWT y de los permisos permanece
+ * siempre en FastAPI.
  * ============================================================
  */
 
-import { Injectable } from '@angular/core';
+import {
+  Injectable
+} from '@angular/core';
 
 import {
   HttpClient
@@ -47,6 +29,9 @@ import {
 import {
   BehaviorSubject,
   Observable,
+  finalize,
+  of,
+  shareReplay,
   tap
 } from 'rxjs';
 
@@ -63,121 +48,118 @@ import {
 })
 export class AuthService {
 
-  /**
-   * URL base del backend FastAPI.
-   *
-   * Más adelante podríamos moverla a environments,
-   * pero para la entrega local utilizamos esta URL.
-   */
   private readonly apiUrl =
     'http://127.0.0.1:8000/auth';
 
 
-  /**
-   * Nombre utilizado para guardar el JWT.
-   *
-   * sessionStorage:
-   *
-   * - conserva el token mientras la pestaña/sesión exista;
-   * - se elimina al cerrar completamente la sesión del navegador;
-   * - evita persistencia indefinida como ocurriría con localStorage.
-   */
   private readonly tokenKey =
     'talentia_access_token';
 
 
-  /**
-   * BehaviorSubject mantiene el estado actual del usuario.
-   *
-   * null:
-   *     no hay usuario autenticado.
-   *
-   * Usuario:
-   *     existe una sesión válida.
-   */
   private readonly usuarioSubject =
-    new BehaviorSubject<Usuario | null>(null);
+    new BehaviorSubject<Usuario | null>(
+      null
+    );
+
+
+  readonly usuario$ =
+    this.usuarioSubject
+      .asObservable();
 
 
   /**
-   * Observable público.
+   * Petición compartida mientras Angular reconstruye
+   * una sesión a partir del JWT existente.
    *
-   * Los componentes pueden suscribirse sin modificar
-   * directamente el estado interno.
+   * Evita varias llamadas concurrentes a /auth/me.
    */
-  readonly usuario$ =
-    this.usuarioSubject.asObservable();
+  private restauracionEnCurso$:
+    Observable<Usuario> | null =
+    null;
 
-    /**
- * Usuario actual disponible directamente para las plantillas.
- *
- * usuario$ continúa disponible para programación reactiva,
- * mientras que este getter facilita condiciones visuales
- * dentro de los templates.
- */
-get usuario(): Usuario | null {
-  return this.usuarioSubject.value;
-}
-
-
-/**
- * Indica de forma sencilla si existe una sesión.
- *
- * La validación definitiva del JWT continúa realizándose
- * en FastAPI.
- */
-get autenticado(): boolean {
-  return this.estaAutenticado();
-}
 
   constructor(
-    private readonly http: HttpClient
+    private readonly http:
+      HttpClient
   ) {}
 
 
   // ==========================================================
-  // 1. REGISTRO
+  // ESTADO ACTUAL
   // ==========================================================
 
-  /**
-   * Registra un nuevo candidato.
-   *
-   * El frontend NO envía rol.
-   *
-   * FastAPI asigna automáticamente:
-   *
-   *     candidato
-   *
-   * Esto evita que un usuario intente registrarse como
-   * administrador modificando el formulario.
-   */
-  registrar(
-    datos: RegistroRequest
-  ): Observable<Usuario> {
+  get usuario():
+    Usuario | null {
 
-    return this.http.post<Usuario>(
-      `${this.apiUrl}/register`,
-      datos
+    return this
+      .usuarioSubject
+      .value;
+  }
+
+
+  get autenticado():
+    boolean {
+
+    return (
+      this.obtenerToken() !==
+      null
     );
   }
 
 
+  obtenerUsuarioActual():
+    Usuario | null {
+
+    return this.usuario;
+  }
+
+
+  estaAutenticado():
+    boolean {
+
+    return this.autenticado;
+  }
+
+
   // ==========================================================
-  // 2. LOGIN
+  // REGISTRO
   // ==========================================================
 
-  /**
-   * Envía las credenciales al backend.
-   *
-   * Si son correctas:
-   *
-   * 1. FastAPI devuelve un JWT.
-   * 2. Angular guarda el token.
-   * 3. Posteriormente cargamos /auth/me.
-   */
+  registrar(
+    datos:
+      RegistroRequest
+  ): Observable<Usuario> {
+
+    return this.http
+      .post<Usuario>(
+        `${this.apiUrl}/register`,
+        datos
+      );
+  }
+
+
+  // ==========================================================
+  // LOGIN
+  // ==========================================================
+
   login(
-    datos: LoginRequest
+    datos:
+      LoginRequest
   ): Observable<TokenResponse> {
+
+    /**
+     * Evitamos una sesión mezclada si el navegador
+     * todavía tenía información anterior.
+     */
+    this.eliminarToken();
+
+    this.usuarioSubject.next(
+      null
+    );
+
+    this.restauracionEnCurso$ =
+      null;
+
 
     return this.http
       .post<TokenResponse>(
@@ -185,30 +167,23 @@ get autenticado(): boolean {
         datos
       )
       .pipe(
-        tap((respuesta) => {
 
-          this.guardarToken(
-            respuesta.access_token
-          );
+        tap(
+          (respuesta) => {
 
-        })
+            this.guardarToken(
+              respuesta.access_token
+            );
+          }
+        )
       );
   }
 
 
   // ==========================================================
-  // 3. OBTENER USUARIO AUTENTICADO
+  // USUARIO AUTENTICADO
   // ==========================================================
 
-  /**
-   * Consulta:
-   *
-   *     GET /auth/me
-   *
-   * El interceptor agregará automáticamente:
-   *
-   *     Authorization: Bearer JWT
-   */
   cargarUsuarioActual():
     Observable<Usuario> {
 
@@ -217,68 +192,106 @@ get autenticado(): boolean {
         `${this.apiUrl}/me`
       )
       .pipe(
-        tap((usuario) => {
 
-          this.usuarioSubject.next(
-            usuario
-          );
+        tap(
+          (usuario) => {
 
-        })
+            this.usuarioSubject.next(
+              usuario
+            );
+          }
+        )
       );
   }
 
 
   // ==========================================================
-  // 4. ESTADO ACTUAL
+  // RESTAURACIÓN DE SESIÓN
   // ==========================================================
 
-  /**
-   * Permite leer el usuario inmediatamente sin necesidad
-   * de realizar una suscripción.
-   */
-  obtenerUsuarioActual():
-    Usuario | null {
+  restaurarSesion():
+    Observable<Usuario> | null {
 
-    return this.usuarioSubject.value;
+    // Ya tenemos el usuario cargado.
+    if (
+      this.usuarioSubject.value
+    ) {
+
+      return of(
+        this.usuarioSubject.value
+      );
+    }
+
+
+    // No existe JWT que restaurar.
+    if (
+      !this.obtenerToken()
+    ) {
+
+      return null;
+    }
+
+
+    // Ya existe una restauración activa.
+    if (
+      this.restauracionEnCurso$
+    ) {
+
+      return this
+        .restauracionEnCurso$;
+    }
+
+
+    const solicitud =
+      this.cargarUsuarioActual()
+        .pipe(
+
+          finalize(
+            () => {
+
+              this.restauracionEnCurso$ =
+                null;
+            }
+          ),
+
+          shareReplay({
+            bufferSize: 1,
+            refCount: false
+          })
+        );
+
+
+    this.restauracionEnCurso$ =
+      solicitud;
+
+
+    return solicitud;
   }
 
 
-  /**
-   * Indica si existe un JWT almacenado.
-   *
-   * Tener un token no garantiza por sí solo que siga siendo
-   * válido; FastAPI realiza la validación real.
-   */
-  estaAutenticado(): boolean {
-
-    return this.obtenerToken() !== null;
-  }
-
-
   // ==========================================================
-  // 5. ROLES
+  // ROLES
   // ==========================================================
 
-  /**
-   * Comprueba si el usuario actual posee un rol.
-   *
-   * Ejemplo:
-   *
-   * auth.tieneRol('reclutador')
-   */
   tieneRol(
-    rol: string
+    rol:
+      string
   ): boolean {
 
     const usuario =
-      this.usuarioSubject.value;
+      this.usuario;
+
 
     if (!usuario) {
+
       return false;
     }
 
+
     return (
-      usuario.rol.nombre
+      usuario
+        .rol
+        .nombre
         .toLowerCase()
       ===
       rol.toLowerCase()
@@ -286,47 +299,44 @@ get autenticado(): boolean {
   }
 
 
-  /**
-   * Permite comprobar varios roles.
-   *
-   * Ejemplo:
-   *
-   * auth.tieneAlgunRol([
-   *   'administrador',
-   *   'reclutador'
-   * ])
-   */
   tieneAlgunRol(
-    roles: string[]
+    roles:
+      string[]
   ): boolean {
 
     const usuario =
-      this.usuarioSubject.value;
+      this.usuario;
+
 
     if (!usuario) {
+
       return false;
     }
 
-    const rolActual =
-      usuario.rol.nombre.toLowerCase();
+
+    const actual =
+      usuario
+        .rol
+        .nombre
+        .toLowerCase();
+
 
     return roles
-      .map((rol) =>
-        rol.toLowerCase()
-      )
-      .includes(rolActual);
+      .some(
+        (rol) =>
+          rol.toLowerCase() ===
+          actual
+      );
   }
 
 
   // ==========================================================
-  // 6. JWT
+  // TOKEN
   // ==========================================================
 
-  /**
-   * Guarda el JWT en sessionStorage.
-   */
   guardarToken(
-    token: string
+    token:
+      string
   ): void {
 
     sessionStorage.setItem(
@@ -336,89 +346,44 @@ get autenticado(): boolean {
   }
 
 
-  /**
-   * Obtiene el JWT almacenado.
-   *
-   * Devuelve null si no existe.
-   */
   obtenerToken():
     string | null {
 
-    return sessionStorage.getItem(
-      this.tokenKey
-    );
+    return sessionStorage
+      .getItem(
+        this.tokenKey
+      );
   }
 
 
-  /**
-   * Elimina el JWT.
-   */
-  eliminarToken(): void {
+  eliminarToken():
+    void {
 
-    sessionStorage.removeItem(
-      this.tokenKey
-    );
+    sessionStorage
+      .removeItem(
+        this.tokenKey
+      );
   }
 
 
   // ==========================================================
-  // 7. CIERRE DE SESIÓN
+  // LOGOUT / LIMPIEZA
   // ==========================================================
 
-  /**
-   * Cierra la sesión local.
-   *
-   * TalentIA utiliza JWT stateless.
-   *
-   * Por eso el cierre efectivo consiste en:
-   *
-   * - eliminar el JWT;
-   * - limpiar el usuario actual.
-   */
-  logout(): void {
+  logout():
+    void {
+
+    this.limpiarSesion();
+  }
+
+
+  limpiarSesion():
+    void {
 
     this.eliminarToken();
 
-    this.usuarioSubject.next(
-      null
-    );
-  }
-
-
-  // ==========================================================
-  // 8. RESTAURAR SESIÓN
-  // ==========================================================
-
-  /**
-   * Se utilizará cuando Angular arranque.
-   *
-   * Si existe un JWT guardado intentamos consultar /auth/me.
-   *
-   * Esto permite mantener la sesión mientras la pestaña
-   * permanezca abierta.
-   */
-  restaurarSesion():
-    Observable<Usuario> | null {
-
-    if (!this.obtenerToken()) {
-      return null;
-    }
-
-    return this.cargarUsuarioActual();
-  }
-
-
-  // ==========================================================
-  // 9. LIMPIAR SESIÓN INVÁLIDA
-  // ==========================================================
-
-  /**
-   * Será utilizado por el interceptor cuando FastAPI
-   * responda HTTP 401.
-   */
-  limpiarSesion(): void {
-
-    this.eliminarToken();
+    this.restauracionEnCurso$ =
+      null;
 
     this.usuarioSubject.next(
       null

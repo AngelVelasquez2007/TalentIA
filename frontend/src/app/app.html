@@ -1,284 +1,389 @@
 <!--
 ============================================================
-TalentIA - Estructura global
+TalentIA - Layout principal
 Archivo: src/app/app.html
-============================================================
-
-Este archivo contiene:
-
-- navegación principal;
-- opciones según rol;
-- usuario autenticado;
-- router-outlet;
-- footer institucional.
-
 ============================================================
 -->
 
+<div class="app-shell">
 
-<!-- ========================================================
-     NAVEGACIÓN PRINCIPAL
-     ======================================================== -->
+  <!-- ======================================================
+       NAVBAR
+       ====================================================== -->
 
-<header class="topbar">
+  <header class="topbar">
 
-  <div class="topbar-inner">
+    <div class="topbar-inner">
 
-    <!-- ====================================================
-         MARCA
-         ==================================================== -->
-
-    <a
-      routerLink="/vacantes"
-      class="logo"
-      aria-label="Ir al inicio de TalentIA"
-    >
-
-      <span class="logo-symbol">
-        T
-      </span>
-
-
-      <span class="logo-text">
-
-        Talent<span>IA</span>
-
-        <small>
-          Reclutamiento inteligente
-        </small>
-
-      </span>
-
-    </a>
-
-
-    <!-- ====================================================
-         MENÚ
-         ==================================================== -->
-
-    <nav class="navigation">
-
-      <!-- CATÁLOGO PÚBLICO -->
+      <!-- ==================================================
+           MARCA
+           ================================================== -->
 
       <a
         routerLink="/vacantes"
-        class="nav-link"
-      >
-        Vacantes
-      </a>
-
-
-      <!-- ==================================================
-           CANDIDATO
-           ================================================== -->
-
-      <a
-        *ngIf="
-          auth.usuario?.rol?.nombre ===
-          'candidato'
-        "
-        routerLink="/perfil"
-        class="nav-link"
-      >
-        Mi perfil
-      </a>
-
-
-      <a
-        *ngIf="
-          auth.usuario?.rol?.nombre ===
-          'candidato'
-        "
-        routerLink="/postulaciones"
-        class="nav-link"
-      >
-        Mis postulaciones
-      </a>
-
-
-      <!-- ==================================================
-           RECLUTADOR / ADMINISTRADOR
-           ================================================== -->
-
-      <a
-        *ngIf="
-          auth.usuario?.rol?.nombre ===
-            'reclutador' ||
-          auth.usuario?.rol?.nombre ===
-            'administrador'
-        "
-        routerLink="/reclutador"
-        class="nav-link"
-      >
-        Reclutamiento
-      </a>
-
-
-      <!-- ==================================================
-           NO AUTENTICADO
-           ================================================== -->
-
-      <ng-container
-        *ngIf="!auth.autenticado"
+        class="brand"
+        (click)="cerrarMenu()"
+        aria-label="TalentIA - Inicio"
       >
 
-        <a
-          routerLink="/login"
-          class="nav-link"
-        >
-          Ingresar
-        </a>
-
-
-        <a
-          routerLink="/registro"
-          class="register-link"
-        >
-          Crear cuenta
-        </a>
-
-      </ng-container>
-
-
-      <!-- ==================================================
-           USUARIO AUTENTICADO
-           ================================================== -->
-
-      <div
-        class="session"
-        *ngIf="auth.usuario"
-      >
-
-        <div class="user-avatar">
-          {{
-            auth.usuario.nombre
-              .charAt(0)
-              .toUpperCase()
-          }}
-        </div>
-
-
-        <div class="user-data">
-
-          <strong>
-            {{ auth.usuario.nombre }}
-          </strong>
+        <div class="brand-symbol">
 
           <span>
-            {{
-              auth.usuario
-                .rol
-                .nombre
-            }}
+            T
+          </span>
+
+          <span class="ai-dot">
           </span>
 
         </div>
 
 
-        <button
-          type="button"
-          class="logout-button"
-          (click)="cerrarSesion()"
+        <div class="brand-copy">
+
+          <strong>
+            Talent<span>IA</span>
+          </strong>
+
+          <small>
+            Recruitment intelligence
+          </small>
+
+        </div>
+
+      </a>
+
+
+      <!-- ==================================================
+           MENÚ MÓVIL
+           ================================================== -->
+
+      <button
+        type="button"
+        class="menu-toggle"
+        (click)="alternarMenu()"
+        [attr.aria-expanded]="menuAbierto"
+        aria-label="Abrir menú"
+      >
+
+        <span></span>
+        <span></span>
+        <span></span>
+
+      </button>
+
+
+      <!-- ==================================================
+           NAVEGACIÓN
+           ================================================== -->
+
+      <nav
+        class="navigation"
+        [class.open]="menuAbierto"
+      >
+
+        <!-- VACANTES -->
+
+        <a
+          routerLink="/vacantes"
+          routerLinkActive="active"
+          class="nav-link"
+          (click)="cerrarMenu()"
         >
-          Salir
-        </button>
+
+          <span class="nav-icon">
+            ◇
+          </span>
+
+          Vacantes
+
+        </a>
+
+
+        <!-- CANDIDATO -->
+
+        <a
+          *ngIf="
+            auth.usuario?.rol?.nombre ===
+            'candidato'
+          "
+          routerLink="/perfil"
+          routerLinkActive="active"
+          class="nav-link"
+          (click)="cerrarMenu()"
+        >
+
+          <span class="nav-icon">
+            ◎
+          </span>
+
+          Mi perfil
+
+        </a>
+
+
+        <a
+          *ngIf="
+            auth.usuario?.rol?.nombre ===
+            'candidato'
+          "
+          routerLink="/postulaciones"
+          routerLinkActive="active"
+          class="nav-link"
+          (click)="cerrarMenu()"
+        >
+
+          <span class="nav-icon">
+            ↗
+          </span>
+
+          Postulaciones
+
+        </a>
+
+
+        <!-- RECLUTADOR -->
+
+        <a
+          *ngIf="
+            auth.usuario?.rol?.nombre ===
+              'reclutador' ||
+            auth.usuario?.rol?.nombre ===
+              'administrador'
+          "
+          routerLink="/reclutador"
+          routerLinkActive="active"
+          class="nav-link"
+          (click)="cerrarMenu()"
+        >
+
+          <span class="nav-icon">
+            ◫
+          </span>
+
+          Reclutamiento
+
+        </a>
+
+
+        <!-- =================================================
+             ACCIONES
+             ================================================= -->
+
+        <div class="nav-actions">
+
+          <!-- ===============================================
+               MODO OSCURO
+               =============================================== -->
+
+          <button
+            type="button"
+            class="theme-toggle"
+            (click)="alternarTema()"
+            [attr.aria-label]="
+              theme.isDark
+                ? 'Activar modo claro'
+                : 'Activar modo oscuro'
+            "
+            [attr.title]="
+              theme.isDark
+                ? 'Modo claro'
+                : 'Modo oscuro'
+            "
+          >
+
+            <!-- SOL -->
+
+            <svg
+              *ngIf="theme.isDark"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="4"
+              />
+
+              <path
+                d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"
+              />
+            </svg>
+
+
+            <!-- LUNA -->
+
+            <svg
+              *ngIf="!theme.isDark"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"
+              />
+            </svg>
+
+          </button>
+
+
+          <!-- ===============================================
+               VISITANTE
+               =============================================== -->
+
+          <ng-container
+            *ngIf="!auth.autenticado"
+          >
+
+            <a
+              routerLink="/login"
+              class="login-link"
+              (click)="cerrarMenu()"
+            >
+              Ingresar
+            </a>
+
+
+            <a
+              routerLink="/registro"
+              class="cta-link"
+              (click)="cerrarMenu()"
+            >
+              Crear cuenta
+
+              <span>
+                →
+              </span>
+            </a>
+
+          </ng-container>
+
+
+          <!-- ===============================================
+               SESIÓN
+               =============================================== -->
+
+          <div
+            class="user-session"
+            *ngIf="auth.usuario"
+          >
+
+            <div class="avatar">
+              {{ inicialUsuario }}
+            </div>
+
+
+            <div class="user-info">
+
+              <strong>
+                {{ auth.usuario.nombre }}
+              </strong>
+
+              <span>
+                {{ etiquetaRol }}
+              </span>
+
+            </div>
+
+
+            <button
+              type="button"
+              class="logout-button"
+              (click)="cerrarSesion()"
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
+            >
+              ↗
+            </button>
+
+          </div>
+
+        </div>
+
+      </nav>
+
+    </div>
+
+  </header>
+
+
+  <!-- ======================================================
+       CONTENIDO
+       ====================================================== -->
+
+  <main class="app-content">
+
+    <router-outlet>
+    </router-outlet>
+
+  </main>
+
+
+  <!-- ======================================================
+       FOOTER
+       ====================================================== -->
+
+  <footer class="footer">
+
+    <div class="footer-inner">
+
+      <div class="footer-brand">
+
+        <div class="footer-logo">
+          T
+        </div>
+
+
+        <div>
+
+          <strong>
+            Talent<span>IA</span>
+          </strong>
+
+          <p>
+            Tecnología para conectar talento
+            con oportunidades.
+          </p>
+
+        </div>
 
       </div>
 
-    </nav>
 
-  </div>
+      <div class="footer-stack">
 
-</header>
+        <span>
+          Angular
+        </span>
 
+        <span>
+          FastAPI
+        </span>
 
-<!-- ========================================================
-     CONTENIDO DE LA APLICACIÓN
-     ======================================================== -->
+        <span>
+          PostgreSQL
+        </span>
 
-<main class="app-content">
+        <span>
+          NLP
+        </span>
 
-  <!--
-    Angular Router inserta aquí el componente correspondiente.
-
-    Ejemplos:
-
-    /vacantes
-        -> Vacantes
-
-    /login
-        -> Login
-
-    /registro
-        -> Registro
-
-    /perfil
-        -> Perfil
-
-    /postulaciones
-        -> Postulaciones
-
-    /reclutador
-        -> Reclutador
-  -->
-
-  <router-outlet>
-  </router-outlet>
-
-</main>
-
-
-<!-- ========================================================
-     FOOTER
-     ======================================================== -->
-
-<footer class="footer">
-
-  <div class="footer-inner">
-
-    <div>
-
-      <strong>
-        Talent<span>IA</span>
-      </strong>
-
-      <p>
-        Plataforma académica de reclutamiento
-        asistido por análisis inteligente.
-      </p>
+      </div>
 
     </div>
 
 
-    <div class="footer-info">
+    <div class="footer-bottom">
 
       <span>
-        Angular
+        Proyecto académico · TalentIA
       </span>
 
-      <span>
-        FastAPI
-      </span>
 
       <span>
-        PostgreSQL
-      </span>
-
-      <span>
-        NLP / Matching
+        IA responsable · Decisión humana
       </span>
 
     </div>
 
-  </div>
+  </footer>
 
-
-  <div class="ethical-footer">
-
-    Las puntuaciones de compatibilidad son orientativas.
-    TalentIA no selecciona ni rechaza candidatos
-    automáticamente y no sustituye la evaluación humana.
-
-  </div>
-
-</footer>
+</div>

@@ -3,24 +3,6 @@
  * TalentIA - Guards de autenticación y roles
  * Archivo: src/app/guards/auth.guard.ts
  * ============================================================
- *
- * Los guards controlan la navegación dentro de Angular.
- *
- * IMPORTANTE:
- *
- * Los guards NO sustituyen la seguridad de FastAPI.
- *
- * Su función es mejorar la experiencia de usuario evitando que:
- *
- * - un visitante abra páginas privadas;
- * - un candidato abra el panel del reclutador;
- * - un reclutador abra páginas exclusivas del candidato.
- *
- * La autorización definitiva sigue siendo validada por:
- *
- * backend/app/security.py
- *
- * ============================================================
  */
 
 import {
@@ -33,6 +15,7 @@ import {
 } from '@angular/router';
 
 import {
+  Observable,
   catchError,
   map,
   of
@@ -47,223 +30,314 @@ import {
 } from '../models/usuario';
 
 
-/**
- * ============================================================
- * FUNCIÓN AUXILIAR
- * ============================================================
- *
- * Recupera el usuario actual.
- *
- * CASO 1:
- * Ya existe usuario en memoria.
- *
- * CASO 2:
- * Hay JWT, pero Angular fue recargado.
- * Consultamos GET /auth/me.
- *
- * CASO 3:
- * No existe JWT.
- * Devuelve null.
- */
 function resolverUsuario(
-  auth: AuthService
-) {
+  auth:
+    AuthService
+): Observable<Usuario | null> {
 
-  const usuarioActual =
+  const actual =
     auth.obtenerUsuarioActual();
 
 
-  if (usuarioActual) {
+  if (actual) {
 
-    return of<Usuario | null>(
-      usuarioActual
+    return of(
+      actual
     );
   }
 
 
-  if (!auth.obtenerToken()) {
+  const restauracion =
+    auth.restaurarSesion();
 
-    return of<Usuario | null>(
+
+  if (!restauracion) {
+
+    return of(
       null
     );
   }
 
 
-  /**
-   * Si existe token intentamos reconstruir la sesión
-   * consultando al backend.
-   */
-  return auth
-    .cargarUsuarioActual()
+  return restauracion
     .pipe(
 
-      catchError(() => {
+      catchError(
+        () => {
 
-        /**
-         * Si el JWT expiró o es inválido,
-         * limpiamos la sesión local.
-         */
-        auth.limpiarSesion();
+          auth.limpiarSesion();
 
-        return of<Usuario | null>(
-          null
-        );
-      })
+          return of(
+            null
+          );
+        }
+      )
     );
 }
 
 
-/**
- * ============================================================
- * GUARD: USUARIO AUTENTICADO
- * ============================================================
- *
- * Permite entrar a cualquier usuario con sesión válida.
- */
+function rutaPrincipalUsuario(
+  usuario:
+    Usuario
+): string {
+
+  const rol =
+    usuario
+      .rol
+      .nombre;
+
+
+  if (
+    rol === 'reclutador' ||
+    rol === 'administrador'
+  ) {
+
+    return '/reclutador';
+  }
+
+
+  return '/vacantes';
+}
+
+
+// ============================================================
+// AUTENTICADO
+// ============================================================
+
 export const authGuard:
   CanActivateFn =
-  () => {
+  (
+    route,
+    state
+  ) => {
+
+    void route;
 
     const auth =
-      inject(AuthService);
+      inject(
+        AuthService
+      );
 
     const router =
-      inject(Router);
+      inject(
+        Router
+      );
 
 
     return resolverUsuario(
       auth
-    ).pipe(
+    )
+      .pipe(
 
-      map((usuario) => {
+        map(
+          (usuario) => {
 
-        if (usuario) {
+            if (usuario) {
 
-          return true;
-        }
+              return true;
+            }
 
 
-        return router.createUrlTree([
-          '/login'
-        ]);
-      })
-    );
+            return router
+              .createUrlTree(
+                ['/login'],
+                {
+                  queryParams: {
+                    returnUrl:
+                      state.url
+                  }
+                }
+              );
+          }
+        )
+      );
   };
 
 
-/**
- * ============================================================
- * GUARD: CANDIDATO
- * ============================================================
- *
- * Solo permite:
- *
- * rol.nombre === "candidato"
- */
+// ============================================================
+// SOLO CANDIDATO
+// ============================================================
+
 export const candidatoGuard:
   CanActivateFn =
-  () => {
+  (
+    route,
+    state
+  ) => {
+
+    void route;
 
     const auth =
-      inject(AuthService);
+      inject(
+        AuthService
+      );
 
     const router =
-      inject(Router);
+      inject(
+        Router
+      );
 
 
     return resolverUsuario(
       auth
-    ).pipe(
+    )
+      .pipe(
 
-      map((usuario) => {
+        map(
+          (usuario) => {
 
-        if (!usuario) {
+            if (!usuario) {
 
-          return router.createUrlTree([
-            '/login'
-          ]);
-        }
-
-
-        if (
-          usuario.rol.nombre ===
-          'candidato'
-        ) {
-
-          return true;
-        }
+              return router
+                .createUrlTree(
+                  ['/login'],
+                  {
+                    queryParams: {
+                      returnUrl:
+                        state.url
+                    }
+                  }
+                );
+            }
 
 
-        /**
-         * Un reclutador o administrador no debe
-         * entrar a la sección "Mis postulaciones".
-         */
-        return router.createUrlTree([
-          '/reclutador'
-        ]);
-      })
-    );
+            if (
+              usuario
+                .rol
+                .nombre ===
+              'candidato'
+            ) {
+
+              return true;
+            }
+
+
+            return router
+              .createUrlTree([
+                '/reclutador'
+              ]);
+          }
+        )
+      );
   };
 
 
-/**
- * ============================================================
- * GUARD: RECLUTAMIENTO
- * ============================================================
- *
- * Permite:
- *
- * - administrador;
- * - reclutador.
- */
+// ============================================================
+// RECLUTADOR / ADMINISTRADOR
+// ============================================================
+
 export const reclutadorGuard:
+  CanActivateFn =
+  (
+    route,
+    state
+  ) => {
+
+    void route;
+
+    const auth =
+      inject(
+        AuthService
+      );
+
+    const router =
+      inject(
+        Router
+      );
+
+
+    return resolverUsuario(
+      auth
+    )
+      .pipe(
+
+        map(
+          (usuario) => {
+
+            if (!usuario) {
+
+              return router
+                .createUrlTree(
+                  ['/login'],
+                  {
+                    queryParams: {
+                      returnUrl:
+                        state.url
+                    }
+                  }
+                );
+            }
+
+
+            const rol =
+              usuario
+                .rol
+                .nombre;
+
+
+            if (
+              rol === 'reclutador' ||
+              rol === 'administrador'
+            ) {
+
+              return true;
+            }
+
+
+            return router
+              .createUrlTree([
+                '/vacantes'
+              ]);
+          }
+        )
+      );
+  };
+
+
+// ============================================================
+// SOLO VISITANTES
+// ============================================================
+
+/**
+ * Evita que un usuario ya autenticado vuelva a /login
+ * o /registro manualmente.
+ */
+export const invitadoGuard:
   CanActivateFn =
   () => {
 
     const auth =
-      inject(AuthService);
+      inject(
+        AuthService
+      );
 
     const router =
-      inject(Router);
+      inject(
+        Router
+      );
 
 
     return resolverUsuario(
       auth
-    ).pipe(
+    )
+      .pipe(
 
-      map((usuario) => {
+        map(
+          (usuario) => {
 
-        if (!usuario) {
+            if (!usuario) {
 
-          return router.createUrlTree([
-            '/login'
-          ]);
-        }
-
-
-        const rol =
-          usuario.rol.nombre;
+              return true;
+            }
 
 
-        if (
-          rol === 'reclutador' ||
-          rol === 'administrador'
-        ) {
-
-          return true;
-        }
-
-
-        /**
-         * Un candidato que intente escribir manualmente:
-         *
-         * /reclutador
-         *
-         * será enviado al catálogo.
-         */
-        return router.createUrlTree([
-          '/vacantes'
-        ]);
-      })
-    );
+            return router
+              .createUrlTree([
+                rutaPrincipalUsuario(
+                  usuario
+                )
+              ]);
+          }
+        )
+      );
   };

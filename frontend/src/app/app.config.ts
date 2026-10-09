@@ -1,19 +1,17 @@
 /**
  * ============================================================
- * TalentIA - Configuración global de Angular
+ * TalentIA - Configuración global Angular
  * Archivo: src/app/app.config.ts
  * ============================================================
  *
- * Este archivo registra servicios globales utilizados
- * por toda la aplicación.
- *
- * CONFIGURA:
+ * Configura:
  *
  * - manejo global de errores;
- * - detección de cambios con Zone.js;
- * - Angular Router;
+ * - Zone.js;
+ * - Router;
  * - HttpClient;
- * - interceptor JWT.
+ * - JWT;
+ * - timeout global de FastAPI.
  *
  * ============================================================
  */
@@ -41,53 +39,72 @@ import {
   authInterceptor
 } from './interceptors/auth-interceptor';
 
+import {
+  apiTimeoutInterceptor
+} from './services/api-timeout.interceptor';
+
 
 export const appConfig:
   ApplicationConfig = {
 
     providers: [
 
-      /**
-       * Registra el sistema moderno de captura de errores
-       * globales de Angular.
-       */
+      // ======================================================
+      // ERRORES GLOBALES
+      // ======================================================
+
       provideBrowserGlobalErrorListeners(),
 
 
-      /**
-       * TalentIA utiliza Zone.js para detectar cambios
-       * producidos por:
-       *
-       * - eventos;
-       * - formularios;
-       * - peticiones HTTP;
-       * - temporizadores.
-       *
-       * eventCoalescing mejora el rendimiento agrupando
-       * determinados eventos.
-       */
-      provideZoneChangeDetection({
-        eventCoalescing: true
-      }),
-
+      // ======================================================
+      // DETECCIÓN DE CAMBIOS
+      // ======================================================
 
       /**
-       * Activa Angular Router utilizando las rutas definidas
-       * en app.routes.ts.
+       * Utilizamos Zone.js sin coalescing adicional.
+       *
+       * En esta aplicación preferimos que las actualizaciones
+       * de estados HTTP se reflejen inmediatamente:
+       *
+       * cargando = false
+       * guardando = false
+       * analizando = false
+       * etc.
        */
+      provideZoneChangeDetection(),
+
+
+      // ======================================================
+      // ROUTER
+      // ======================================================
+
       provideRouter(
         routes
       ),
 
 
-      /**
-       * Habilita HttpClient para consumir FastAPI.
-       *
-       * Además registra nuestro interceptor JWT.
-       */
+      // ======================================================
+      // HTTP
+      // ======================================================
+
       provideHttpClient(
+
         withInterceptors([
-          authInterceptor
+
+          /**
+           * Primero agrega:
+           *
+           * Authorization: Bearer JWT
+           */
+          authInterceptor,
+
+
+          /**
+           * Después protege contra llamadas que permanezcan
+           * indefinidamente pendientes.
+           */
+          apiTimeoutInterceptor
+
         ])
       )
     ]

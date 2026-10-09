@@ -49,6 +49,11 @@ motor de compatibilidad de TalentIA.
 ============================================================
 """
 
+from datetime import (
+    datetime,
+    timezone,
+)
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -64,7 +69,7 @@ from sqlalchemy import (
     select,
 )
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from sqlalchemy.orm import (
     Session,
@@ -936,6 +941,11 @@ def crear_vacante(
         estado=datos.estado,
         empresa_id=empresa_id,
         creada_por_id=usuario_actual.id,
+        fecha_cierre=(
+            datetime.now(timezone.utc)
+            if datos.estado == "cerrada"
+            else None
+        ),
     )
 
     db.add(
@@ -1056,12 +1066,27 @@ def actualizar_vacante(
     # APLICAR CAMPOS SIMPLES
     # --------------------------------------------------------
 
+    estado_anterior = vacante.estado
+
     for campo, valor in cambios.items():
         setattr(
             vacante,
             campo,
             valor,
         )
+
+    # Mantiene fecha_cierre coherente con el estado.
+    if "estado" in cambios:
+        if vacante.estado == "cerrada":
+            if (
+                estado_anterior != "cerrada"
+                or vacante.fecha_cierre is None
+            ):
+                vacante.fecha_cierre = datetime.now(
+                    timezone.utc
+                )
+        else:
+            vacante.fecha_cierre = None
 
     # --------------------------------------------------------
     # ACTUALIZAR HABILIDADES
@@ -1166,8 +1191,22 @@ def cerrar_vacante(
         )
 
     vacante.estado = "cerrada"
+    vacante.fecha_cierre = datetime.now(
+        timezone.utc
+    )
 
-    db.commit()
+    try:
+        db.commit()
+
+    except SQLAlchemyError as error:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                "No fue posible cerrar la vacante."
+            ),
+        ) from error
 
     return {
         "message": (

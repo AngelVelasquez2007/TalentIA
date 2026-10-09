@@ -1,45 +1,17 @@
 /**
  * ============================================================
- * TalentIA - Servicio de análisis IA / NLP
+ * TalentIA - Servicio de análisis de compatibilidad
  * Archivo: src/app/services/analisis.ts
  * ============================================================
  *
- * Este servicio conecta Angular con el endpoint:
+ * El backend combina:
  *
- *   POST /analisis/vacantes/{vacante_id}
+ * - TF-IDF;
+ * - similitud coseno;
+ * - coincidencia ponderada de habilidades.
  *
- * RESPONSABILIDADES:
- *
- * - enviar el perfil profesional del candidato;
- * - enviar habilidades adicionales;
- * - recibir la puntuación de compatibilidad;
- * - recibir similitud textual;
- * - recibir coincidencia de habilidades;
- * - recibir habilidades coincidentes;
- * - recibir habilidades faltantes;
- * - recibir una explicación legible del resultado.
- *
- * FLUJO:
- *
- * Angular
- *    |
- *    | perfil + habilidades
- *    v
- * AnalisisService
- *    |
- *    v
- * FastAPI
- *    |
- *    v
- * matching.py
- *    |
- *    +-- TF-IDF
- *    +-- similitud coseno
- *    +-- habilidades ponderadas
- *    |
- *    v
- * resultado 0 - 100 %
- *
+ * El resultado es orientativo. No contrata ni descarta
+ * candidatos automáticamente.
  * ============================================================
  */
 
@@ -66,83 +38,109 @@ import {
 })
 export class AnalisisService {
 
-  /**
-   * URL base del módulo de análisis.
-   */
   private readonly apiUrl =
     'http://127.0.0.1:8000/analisis';
 
 
   constructor(
-    private readonly http: HttpClient
+    private readonly http:
+      HttpClient
   ) {}
 
 
   // ==========================================================
-  // 1. ANALIZAR UNA VACANTE
+  // ANALIZAR VACANTE
   // ==========================================================
 
-  /**
-   * Ejecuta el motor de compatibilidad para una vacante.
-   *
-   * Ejemplo:
-   *
-   * analizarVacante(
-   *   1,
-   *   {
-   *     perfil_profesional:
-   *       'Desarrollador Angular con TypeScript...',
-   *
-   *     habilidades: [
-   *       'Angular',
-   *       'TypeScript',
-   *       'PostgreSQL'
-   *     ]
-   *   }
-   * )
-   *
-   * Esto genera:
-   *
-   * POST /analisis/vacantes/1
-   */
   analizarVacante(
-    vacanteId: number,
-    datos: AnalisisRequest
+    vacanteId:
+      number,
+
+    datos:
+      AnalisisRequest
   ): Observable<AnalisisCompatibilidad> {
 
-    return this.http.post<AnalisisCompatibilidad>(
-      `${this.apiUrl}/vacantes/${vacanteId}`,
-      datos
-    );
+    return this.http
+      .post<AnalisisCompatibilidad>(
+        `${this.apiUrl}/vacantes/${vacanteId}`,
+        datos
+      );
   }
 
 
   // ==========================================================
-  // 2. MÉTODO AUXILIAR
+  // ANALIZAR PERFIL GUARDADO
   // ==========================================================
 
   /**
-   * Permite ejecutar un análisis enviando únicamente
-   * el perfil profesional.
-   *
-   * Se utiliza cuando el candidato todavía no tiene
-   * habilidades estructuradas en su cuenta.
+   * /vacantes obtiene primero /usuarios/me y utiliza esa copia
+   * fresca del perfil. Las habilidades enviadas se combinan en
+   * FastAPI con las persistidas, eliminando duplicados.
    */
-  analizarSoloPerfil(
-    vacanteId: number,
-    perfilProfesional: string
+  analizarPerfilGuardado(
+    vacanteId:
+      number,
+
+    perfilProfesional:
+      string,
+
+    habilidades:
+      string[]
   ): Observable<AnalisisCompatibilidad> {
 
-    const datos: AnalisisRequest = {
-      perfil_profesional:
-        perfilProfesional,
+    const habilidadesLimpias =
+      Array.from(
+        new Set(
+          habilidades
+            .map(
+              (habilidad) =>
+                habilidad.trim()
+            )
+            .filter(
+              (habilidad) =>
+                habilidad.length > 0
+            )
+        )
+      );
 
-      habilidades: []
-    };
 
-    return this.analizarVacante(
-      vacanteId,
-      datos
-    );
+    return this
+      .analizarVacante(
+        vacanteId,
+        {
+          perfil_profesional:
+            perfilProfesional
+              .trim(),
+
+          habilidades:
+            habilidadesLimpias
+        }
+      );
+  }
+
+
+  // ==========================================================
+  // COMPATIBILIDAD CON OTROS COMPONENTES
+  // ==========================================================
+
+  analizarSoloPerfil(
+    vacanteId:
+      number,
+
+    perfilProfesional:
+      string
+  ): Observable<AnalisisCompatibilidad> {
+
+    return this
+      .analizarVacante(
+        vacanteId,
+        {
+          perfil_profesional:
+            perfilProfesional
+              .trim(),
+
+          habilidades: []
+        }
+      );
   }
 }

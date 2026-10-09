@@ -49,6 +49,7 @@ from fastapi import (
     Depends,
     HTTPException,
     Query,
+    status,
 )
 
 from sqlalchemy import (
@@ -56,6 +57,7 @@ from sqlalchemy import (
     select,
 )
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import (
     Session,
     joinedload,
@@ -134,7 +136,7 @@ def cargar_usuario_completo(
 
     if not usuario:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuario no encontrado.",
         )
 
@@ -166,7 +168,7 @@ def buscar_o_crear_habilidad(
 
     if not nombre_limpio:
         raise HTTPException(
-            status_code=422,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="El nombre de la habilidad no puede estar vacío.",
         )
 
@@ -281,7 +283,7 @@ def actualizar_mi_perfil(
 
     if not usuario:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuario no encontrado.",
         )
 
@@ -304,7 +306,7 @@ def actualizar_mi_perfil(
         ] < 0
     ):
         raise HTTPException(
-            status_code=422,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=(
                 "Los años de experiencia "
                 "no pueden ser negativos."
@@ -403,7 +405,19 @@ def actualizar_mi_perfil(
             )
 
 
-    db.commit()
+    try:
+        db.commit()
+
+    except IntegrityError as error:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "No fue posible actualizar el perfil "
+                "por un conflicto con los datos enviados."
+            ),
+        ) from error
 
 
     return cargar_usuario_completo(

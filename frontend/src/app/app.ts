@@ -3,23 +3,11 @@
  * TalentIA - Componente raíz
  * Archivo: src/app/app.ts
  * ============================================================
- *
- * Este componente permanece activo durante toda la ejecución
- * de Angular.
- *
- * RESPONSABILIDADES:
- *
- * - mostrar la navegación principal;
- * - renderizar las páginas mediante router-outlet;
- * - restaurar una sesión existente;
- * - cerrar sesión;
- * - redirigir al catálogo después del logout.
- *
- * ============================================================
  */
 
 import {
   Component,
+  OnDestroy,
   OnInit
 } from '@angular/core';
 
@@ -28,14 +16,26 @@ import {
 } from '@angular/common';
 
 import {
+  NavigationEnd,
   Router,
   RouterLink,
+  RouterLinkActive,
   RouterOutlet
 } from '@angular/router';
 
 import {
+  Subject,
+  filter,
+  takeUntil
+} from 'rxjs';
+
+import {
   AuthService
 } from './services/auth';
+
+import {
+  ThemeService
+} from './services/theme';
 
 
 @Component({
@@ -46,7 +46,8 @@ import {
   imports: [
     CommonModule,
     RouterOutlet,
-    RouterLink
+    RouterLink,
+    RouterLinkActive
   ],
 
   templateUrl:
@@ -56,88 +57,158 @@ import {
     './app.scss'
 })
 export class App
-  implements OnInit {
+  implements OnInit, OnDestroy {
+
+  menuAbierto = false;
+
+
+  private readonly destruir$ =
+    new Subject<void>();
+
 
   constructor(
-    /**
-     * Public permite utilizar AuthService
-     * directamente desde app.html.
-     */
     public readonly auth:
       AuthService,
+
+    public readonly theme:
+      ThemeService,
 
     private readonly router:
       Router
   ) {}
 
 
-  // ==========================================================
-  // INICIO DE LA APLICACIÓN
-  // ==========================================================
-
   ngOnInit(): void {
 
     /**
-     * Si existe JWT en sessionStorage intentamos recuperar
-     * el usuario autenticado mediante GET /auth/me.
+     * Restauramos una sola sesión compartida.
      */
     const restauracion =
       this.auth
         .restaurarSesion();
 
 
+    restauracion
+      ?.subscribe({
+
+        error: () => {
+
+          this.auth
+            .limpiarSesion();
+        }
+      });
+
+
     /**
-     * Si no existe JWT no hay sesión que restaurar.
+     * Si el usuario navega, cerramos cualquier menú móvil
+     * que haya quedado abierto.
      */
-    if (!restauracion) {
-      return;
-    }
+    this.router.events
+      .pipe(
 
+        filter(
+          (
+            evento
+          ): evento is NavigationEnd =>
+            evento instanceof NavigationEnd
+        ),
 
-    restauracion.subscribe({
+        takeUntil(
+          this.destruir$
+        )
+      )
+      .subscribe(
+        () => {
 
-      /**
-       * cargarUsuarioActual() ya actualiza internamente
-       * el BehaviorSubject de AuthService.
-       */
-      next: () => {
-        // No necesitamos realizar otra acción.
-      },
-
-
-      /**
-       * Si el token está vencido o es inválido,
-       * eliminamos la sesión almacenada.
-       */
-      error: () => {
-
-        this.auth
-          .limpiarSesion();
-      }
-    });
+          this.menuAbierto =
+            false;
+        }
+      );
   }
 
 
-  // ==========================================================
-  // CERRAR SESIÓN
-  // ==========================================================
+  ngOnDestroy(): void {
+
+    this.destruir$.next();
+
+    this.destruir$.complete();
+  }
+
+
+  alternarMenu(): void {
+
+    this.menuAbierto =
+      !this.menuAbierto;
+  }
+
+
+  cerrarMenu(): void {
+
+    this.menuAbierto =
+      false;
+  }
+
+
+  alternarTema(): void {
+
+    this.theme.toggle();
+  }
+
+
+  get inicialUsuario():
+    string {
+
+    const nombre =
+      this.auth.usuario
+        ?.nombre;
+
+
+    if (!nombre) {
+
+      return '?';
+    }
+
+
+    return nombre
+      .charAt(0)
+      .toUpperCase();
+  }
+
+
+  get etiquetaRol():
+    string {
+
+    const rol =
+      this.auth.usuario
+        ?.rol?.nombre;
+
+
+    switch (rol) {
+
+      case 'administrador':
+        return 'Administrador';
+
+      case 'reclutador':
+        return 'Reclutador';
+
+      case 'candidato':
+        return 'Candidato';
+
+      default:
+        return '';
+    }
+  }
+
 
   cerrarSesion(): void {
 
-    /**
-     * Elimina:
-     *
-     * - JWT de sessionStorage;
-     * - usuario almacenado en AuthService.
-     */
     this.auth.logout();
 
+    this.cerrarMenu();
 
-    /**
-     * Después del logout regresamos al catálogo público.
-     */
-    this.router.navigate([
-      '/vacantes'
+
+    void this.router.navigate([
+      '/login'
     ]);
   }
 }

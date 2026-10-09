@@ -1,18 +1,15 @@
 /**
  * ============================================================
- * TalentIA - Servicio de usuarios
+ * TalentIA - Servicio de usuario
  * Archivo: src/app/services/usuario.ts
  * ============================================================
  *
- * Este servicio gestiona el perfil profesional del usuario.
+ * Gestiona:
  *
- * ENDPOINTS:
+ * - consulta del perfil autenticado;
+ * - actualización del perfil profesional;
+ * - consulta del catálogo de habilidades.
  *
- * GET /usuarios/me
- * PUT /usuarios/me/perfil
- * GET /usuarios/habilidades
- *
- * El JWT es agregado automáticamente por authInterceptor.
  * ============================================================
  */
 
@@ -21,18 +18,12 @@ import {
 } from '@angular/core';
 
 import {
-  HttpClient,
-  HttpParams
+  HttpClient
 } from '@angular/common/http';
 
 import {
-  Observable,
-  tap
+  Observable
 } from 'rxjs';
-
-import {
-  Habilidad
-} from '../models/vacante';
 
 import {
   Usuario,
@@ -40,8 +31,8 @@ import {
 } from '../models/usuario';
 
 import {
-  AuthService
-} from './auth';
+  Habilidad
+} from '../models/vacante';
 
 
 @Injectable({
@@ -50,25 +41,24 @@ import {
 export class UsuarioService {
 
   /**
-   * Endpoint base.
+   * Router FastAPI:
+   *
+   * /usuarios
    */
   private readonly apiUrl =
     'http://127.0.0.1:8000/usuarios';
 
 
   constructor(
-    private readonly http: HttpClient,
-    private readonly auth: AuthService
+    private readonly http:
+      HttpClient
   ) {}
 
 
   // ==========================================================
-  // PERFIL ACTUAL
+  // MI PERFIL
   // ==========================================================
 
-  /**
-   * Recupera el perfil completo del usuario autenticado.
-   */
   obtenerMiPerfil():
     Observable<Usuario> {
 
@@ -82,78 +72,29 @@ export class UsuarioService {
   // ACTUALIZAR PERFIL
   // ==========================================================
 
-  /**
-   * Guarda:
-   *
-   * - información personal;
-   * - perfil profesional;
-   * - experiencia;
-   * - habilidades.
-   */
   actualizarPerfil(
-    datos: UsuarioPerfilUpdate
+    datos:
+      UsuarioPerfilUpdate
   ): Observable<Usuario> {
 
-    return this.http
-      .put<Usuario>(
-        `${this.apiUrl}/me/perfil`,
-        datos
-      )
-      .pipe(
-
-        /**
-         * Después de actualizar volvemos a sincronizar
-         * el usuario almacenado por AuthService.
-         */
-        tap(() => {
-
-          this.auth
-            .cargarUsuarioActual()
-            .subscribe();
-        })
-      );
+    return this.http.put<Usuario>(
+      `${this.apiUrl}/me/perfil`,
+      datos
+    );
   }
 
 
   // ==========================================================
-  // HABILIDADES
+  // CATÁLOGO DE HABILIDADES
   // ==========================================================
 
-  /**
-   * Consulta el catálogo de habilidades.
-   *
-   * Puede recibir texto para filtrar.
-   */
-  listarHabilidades(
-    buscar = ''
-  ): Observable<Habilidad[]> {
+  listarHabilidades():
+    Observable<Habilidad[]> {
 
-    let params =
-      new HttpParams();
-
-
-    if (
-      buscar.trim()
-    ) {
-
-      params = params.set(
-        'buscar',
-        buscar.trim()
-      );
-    }
-
-
-    params = params.set(
-      'limite',
-      '150'
-    );
-
-
-    return this.http.get<Habilidad[]>(
-      `${this.apiUrl}/habilidades`,
-      {
-        params
-      }
+    return this.http.get<
+      Habilidad[]
+    >(
+      `${this.apiUrl}/habilidades`
     );
   }
 }

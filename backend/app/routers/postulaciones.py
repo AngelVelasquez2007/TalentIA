@@ -50,7 +50,7 @@ from sqlalchemy import (
     select,
 )
 
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from sqlalchemy.orm import (
     Session,
@@ -1021,7 +1021,19 @@ def cambiar_estado_postulacion(
 
     postulacion.estado = datos.estado
 
-    db.commit()
+    try:
+        db.commit()
+
+    except SQLAlchemyError as error:
+        db.rollback()
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=(
+                "No fue posible actualizar el estado "
+                "de la postulación."
+            ),
+        ) from error
 
     return cargar_postulacion_completa(
         db,

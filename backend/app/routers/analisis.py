@@ -47,11 +47,6 @@ from fastapi import (
     status,
 )
 
-from pydantic import (
-    BaseModel,
-    Field,
-)
-
 from sqlalchemy import select
 
 from sqlalchemy.orm import (
@@ -74,7 +69,7 @@ from app.schemas import (
 )
 
 from app.security import (
-    get_current_user,
+    require_roles,
 )
 
 
@@ -293,7 +288,9 @@ def analizar_vacante(
     datos: AnalisisPerfilRequest,
 
     usuario_actual: models.Usuario = Depends(
-        get_current_user
+        require_roles(
+            "candidato"
+        )
     ),
 
     db: Session = Depends(get_db),
@@ -387,79 +384,3 @@ def analizar_vacante(
     )
 
     return resultado
-
-
-# ============================================================
-# 6. COMPATIBILIDAD CON EL FRONTEND ACTUAL
-# ============================================================
-
-class AnalisisLegacyRequest(BaseModel):
-    """
-    Esquema temporal de compatibilidad con la versión inicial
-    del frontend.
-
-    Actualmente Angular envía:
-
-        {
-            "vacante_id": 1,
-            "perfil": "..."
-        }
-
-    Mientras actualizamos el frontend, mantenemos este
-    endpoint funcionando.
-
-    Después Angular utilizará el endpoint principal:
-
-        POST /analisis/vacantes/{vacante_id}
-    """
-
-    vacante_id: int = Field(
-        gt=0,
-    )
-
-    perfil: str = Field(
-        min_length=20,
-        max_length=5000,
-    )
-
-
-@router.post(
-    "/compatibilidad",
-    response_model=AnalisisCompatibilidadResponse,
-    include_in_schema=False,
-)
-def compatibilidad_frontend_anterior(
-    datos: AnalisisLegacyRequest,
-
-    usuario_actual: models.Usuario = Depends(
-        get_current_user
-    ),
-
-    db: Session = Depends(get_db),
-):
-    """
-    Endpoint de compatibilidad con el Angular existente.
-
-    No aparece en Swagger porque el endpoint recomendado
-    para la versión final es:
-
-        POST /analisis/vacantes/{id}
-
-    Se conserva para que la aplicación no deje de funcionar
-    durante la migración archivo por archivo.
-    """
-
-    vacante = obtener_vacante_para_analisis(
-        db,
-        datos.vacante_id,
-    )
-
-    habilidades = obtener_habilidades_usuario(
-        usuario_actual
-    )
-
-    return analizar_compatibilidad(
-        perfil_profesional=datos.perfil,
-        vacante=vacante,
-        habilidades_candidato=habilidades,
-    )

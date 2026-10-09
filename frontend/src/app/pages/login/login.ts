@@ -1,38 +1,13 @@
 /**
  * ============================================================
- * TalentIA - Página de inicio de sesión
+ * TalentIA - Inicio de sesión
  * Archivo: src/app/pages/login/login.ts
- * ============================================================
- *
- * Esta pantalla permite autenticar usuarios contra FastAPI.
- *
- * FLUJO:
- *
- * Usuario
- *    ↓
- * formulario Angular
- *    ↓
- * AuthService.login()
- *    ↓
- * POST /auth/login
- *    ↓
- * FastAPI verifica contraseña
- *    ↓
- * devuelve JWT
- *    ↓
- * Angular guarda JWT en sessionStorage
- *    ↓
- * GET /auth/me
- *    ↓
- * se obtiene usuario + rol
- *    ↓
- * redirección según rol
- *
  * ============================================================
  */
 
 import {
-  Component
+  Component,
+  OnInit
 } from '@angular/core';
 
 import {
@@ -47,6 +22,7 @@ import {
 } from '@angular/forms';
 
 import {
+  ActivatedRoute,
   Router,
   RouterLink
 } from '@angular/router';
@@ -63,6 +39,10 @@ import {
   AuthService
 } from '../../services/auth';
 
+import {
+  Usuario
+} from '../../models/usuario';
+
 
 @Component({
   selector: 'app-login',
@@ -75,53 +55,42 @@ import {
     RouterLink
   ],
 
-  templateUrl: './login.html',
+  templateUrl:
+    './login.html',
 
-  styleUrl: './login.scss'
+  styleUrl:
+    './login.scss'
 })
-export class Login {
+export class Login
+  implements OnInit {
 
-  /**
-   * Formulario reactivo.
-   */
-  formulario: FormGroup;
+  formulario:
+    FormGroup;
 
 
-  /**
-   * Controla el estado visual mientras FastAPI responde.
-   */
   cargando = false;
 
-
-  /**
-   * Mensaje mostrado cuando ocurre un error.
-   */
   error = '';
 
+  mensaje = '';
 
-  /**
-   * Permite mostrar/ocultar la contraseña.
-   */
   mostrarPassword = false;
 
 
   constructor(
-    private readonly fb: FormBuilder,
-    private readonly auth: AuthService,
-    private readonly router: Router
+    private readonly fb:
+      FormBuilder,
+
+    private readonly auth:
+      AuthService,
+
+    private readonly router:
+      Router,
+
+    private readonly route:
+      ActivatedRoute
   ) {
 
-    /**
-     * Creamos las reglas del formulario.
-     *
-     * email:
-     * - obligatorio;
-     * - formato email.
-     *
-     * password:
-     * - obligatorio;
-     * - mínimo 8 caracteres.
-     */
     this.formulario =
       this.fb.group({
 
@@ -144,17 +113,35 @@ export class Login {
   }
 
 
-  // ==========================================================
-  // 1. ACCESO CÓMODO A CONTROLES
-  // ==========================================================
+  ngOnInit(): void {
 
-  /**
-   * Facilita el uso desde el HTML:
-   *
-   * email.invalid
-   * password.invalid
-   */
+    if (
+      this.route.snapshot
+        .queryParamMap
+        .get('registro') ===
+      'ok'
+    ) {
+
+      this.mensaje =
+        'Cuenta creada correctamente. Ya puedes iniciar sesión.';
+    }
+
+
+    if (
+      this.route.snapshot
+        .queryParamMap
+        .get('sesion') ===
+      'expirada'
+    ) {
+
+      this.error =
+        'Tu sesión expiró. Inicia sesión nuevamente.';
+    }
+  }
+
+
   get email() {
+
     return this.formulario.get(
       'email'
     );
@@ -162,15 +149,12 @@ export class Login {
 
 
   get password() {
+
     return this.formulario.get(
       'password'
     );
   }
 
-
-  // ==========================================================
-  // 2. MOSTRAR / OCULTAR PASSWORD
-  // ==========================================================
 
   alternarPassword(): void {
 
@@ -179,168 +163,287 @@ export class Login {
   }
 
 
-  // ==========================================================
-  // 3. INICIAR SESIÓN
-  // ==========================================================
-
   iniciarSesion(): void {
 
-    this.error = '';
-
-
-    // --------------------------------------------------------
-    // VALIDAR FORMULARIO
-    // --------------------------------------------------------
-
-    if (this.formulario.invalid) {
-
-      /**
-       * Hace que Angular muestre los errores aunque el usuario
-       * no haya tocado todos los campos.
-       */
-      this.formulario.markAllAsTouched();
+    if (this.cargando) {
 
       return;
     }
 
 
-    this.cargando = true;
+    this.error = '';
+
+    this.mensaje = '';
 
 
-    // --------------------------------------------------------
-    // OBTENER DATOS
-    // --------------------------------------------------------
+    if (
+      this.formulario.invalid
+    ) {
 
-    const datos = {
+      this.formulario
+        .markAllAsTouched();
 
-      email:
-        this.formulario.value.email
-          .trim()
-          .toLowerCase(),
-
-      password:
-        this.formulario.value.password
-    };
+      return;
+    }
 
 
-    // --------------------------------------------------------
-    // LOGIN + OBTENER /auth/me
-    // --------------------------------------------------------
+    const email =
+      String(
+        this.formulario
+          .value
+          .email ??
+        ''
+      )
+        .trim()
+        .toLowerCase();
 
-    /**
-     * switchMap permite encadenar dos peticiones:
-     *
-     * 1. login()
-     * 2. cargarUsuarioActual()
-     *
-     * La segunda se ejecuta únicamente si la primera fue
-     * exitosa.
-     */
+
+    const password =
+      String(
+        this.formulario
+          .value
+          .password ??
+        ''
+      );
+
+
+    this.cargando =
+      true;
+
+
     this.auth
-      .login(datos)
+      .login({
+        email,
+        password
+      })
       .pipe(
 
-        switchMap(() =>
-          this.auth
-            .cargarUsuarioActual()
+        switchMap(
+          () =>
+            this.auth
+              .cargarUsuarioActual()
         )
-
       )
       .subscribe({
 
         next: (usuario) => {
 
-          this.cargando = false;
+          this.cargando =
+            false;
 
-
-          // --------------------------------------------------
-          // REDIRECCIÓN SEGÚN ROL
-          // --------------------------------------------------
-
-          const rol =
-            usuario.rol.nombre;
-
-
-          /**
-           * Reclutadores y administradores irán al panel
-           * administrativo.
-           *
-           * Crearemos esta ruta en los siguientes parches.
-           */
-          if (
-            rol === 'reclutador' ||
-            rol === 'administrador'
-          ) {
-
-            this.router.navigate([
-              '/reclutador'
-            ]);
-
-            return;
-          }
-
-
-          /**
-           * Los candidatos ingresan al catálogo.
-           */
-          this.router.navigate([
-            '/vacantes'
-          ]);
+          void this.redirigirDespuesDelLogin(
+            usuario
+          );
         },
 
 
         error: (
-          respuesta: HttpErrorResponse
+          respuesta:
+            HttpErrorResponse
         ) => {
 
-          this.cargando = false;
-
-
-          // --------------------------------------------------
-          // MENSAJES DE ERROR AMIGABLES
-          // --------------------------------------------------
-
-          if (
-            respuesta.status === 401
-          ) {
-
-            this.error =
-              'Correo o contraseña incorrectos.';
-
-            return;
-          }
-
-
-          if (
-            respuesta.status === 403
-          ) {
-
-            this.error =
-              'Tu cuenta se encuentra desactivada.';
-
-            return;
-          }
-
-
-          if (
-            respuesta.status === 0
-          ) {
-
-            this.error =
-              'No se pudo conectar con el servidor. ' +
-              'Verifica que FastAPI esté ejecutándose.';
-
-            return;
-          }
-
+          this.cargando =
+            false;
 
           /**
-           * Si FastAPI devuelve detail, lo utilizamos.
+           * Evita quedar en un estado parcial si /login
+           * devolvió token pero /auth/me falló después.
            */
+          this.auth
+            .limpiarSesion();
+
+
           this.error =
-            respuesta.error?.detail ||
-            'Ocurrió un error al iniciar sesión.';
+            this.obtenerMensajeError(
+              respuesta
+            );
+        },
+
+
+        complete: () => {
+
+          this.cargando =
+            false;
         }
       });
+  }
+
+
+  private async redirigirDespuesDelLogin(
+    usuario:
+      Usuario
+  ): Promise<void> {
+
+    const returnUrl =
+      this.route.snapshot
+        .queryParamMap
+        .get('returnUrl');
+
+
+    /**
+     * Solo aceptamos rutas locales conocidas.
+     */
+    if (
+      returnUrl &&
+      this.puedeVisitarReturnUrl(
+        usuario,
+        returnUrl
+      )
+    ) {
+
+      await this.router.navigateByUrl(
+        returnUrl
+      );
+
+      return;
+    }
+
+
+    const rol =
+      usuario
+        .rol
+        .nombre;
+
+
+    if (
+      rol === 'reclutador' ||
+      rol === 'administrador'
+    ) {
+
+      await this.router.navigate([
+        '/reclutador'
+      ]);
+
+      return;
+    }
+
+
+    await this.router.navigate([
+      '/vacantes'
+    ]);
+  }
+
+
+  private puedeVisitarReturnUrl(
+    usuario:
+      Usuario,
+
+    returnUrl:
+      string
+  ): boolean {
+
+    if (
+      !returnUrl.startsWith('/') ||
+      returnUrl.startsWith('//')
+    ) {
+
+      return false;
+    }
+
+
+    const ruta =
+      returnUrl
+        .split('?')[0]
+        .split('#')[0];
+
+
+    const rol =
+      usuario
+        .rol
+        .nombre;
+
+
+    if (
+      ruta.startsWith('/perfil') ||
+      ruta.startsWith('/postulaciones')
+    ) {
+
+      return (
+        rol === 'candidato'
+      );
+    }
+
+
+    if (
+      ruta.startsWith('/reclutador')
+    ) {
+
+      return (
+        rol === 'reclutador' ||
+        rol === 'administrador'
+      );
+    }
+
+
+    return (
+      ruta === '/vacantes' ||
+      ruta === '/'
+    );
+  }
+
+
+  private obtenerMensajeError(
+    respuesta:
+      HttpErrorResponse
+  ): string {
+
+    if (
+      respuesta.status === 401
+    ) {
+
+      return (
+        'Correo o contraseña incorrectos.'
+      );
+    }
+
+
+    if (
+      respuesta.status === 403
+    ) {
+
+      return (
+        'Tu cuenta se encuentra desactivada.'
+      );
+    }
+
+
+    if (
+      respuesta.status === 0
+    ) {
+
+      if (
+        typeof respuesta
+          .error?.detail ===
+        'string'
+      ) {
+
+        return respuesta
+          .error
+          .detail;
+      }
+
+
+      return (
+        'No se pudo conectar con el servidor. ' +
+        'Verifica que FastAPI esté ejecutándose.'
+      );
+    }
+
+
+    if (
+      typeof respuesta
+        .error?.detail ===
+      'string'
+    ) {
+
+      return respuesta
+        .error
+        .detail;
+    }
+
+
+    return (
+      'Ocurrió un error al iniciar sesión.'
+    );
   }
 }

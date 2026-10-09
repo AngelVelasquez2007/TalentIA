@@ -35,6 +35,7 @@ import {
 
 import {
   candidatoGuard,
+  invitadoGuard,
   reclutadorGuard
 } from './guards/auth.guard';
 
@@ -49,6 +50,10 @@ export const routes:
     },
 
 
+    // ========================================================
+    // PÚBLICA
+    // ========================================================
+
     {
       path: 'vacantes',
       component: Vacantes,
@@ -57,9 +62,18 @@ export const routes:
     },
 
 
+    // ========================================================
+    // SOLO VISITANTES
+    // ========================================================
+
     {
       path: 'login',
       component: Login,
+
+      canActivate: [
+        invitadoGuard
+      ],
+
       title:
         'Iniciar sesión | TalentIA'
     },
@@ -68,14 +82,20 @@ export const routes:
     {
       path: 'registro',
       component: Registro,
+
+      canActivate: [
+        invitadoGuard
+      ],
+
       title:
         'Crear cuenta | TalentIA'
     },
 
 
-    /**
-     * Perfil profesional exclusivo del candidato.
-     */
+    // ========================================================
+    // CANDIDATO
+    // ========================================================
+
     {
       path: 'perfil',
       component: Perfil,
@@ -102,6 +122,10 @@ export const routes:
     },
 
 
+    // ========================================================
+    // RECLUTAMIENTO
+    // ========================================================
+
     {
       path: 'reclutador',
       component: Reclutador,
@@ -114,6 +138,10 @@ export const routes:
         'Panel de reclutamiento | TalentIA'
     },
 
+
+    // ========================================================
+    // 404 LOCAL
+    // ========================================================
 
     {
       path: '**',

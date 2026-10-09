@@ -1,50 +1,27 @@
 /**
  * ============================================================
- * TalentIA - Panel de reclutamiento
+ * TalentIA - Dashboard del reclutador
  * Archivo: src/app/pages/reclutador/reclutador.ts
  * ============================================================
  *
- * Esta pantalla está orientada a:
+ * Panel ATS de TalentIA.
  *
- * - reclutadores;
- * - administradores.
+ * Esta versión corrige principalmente:
  *
- * FUNCIONALIDADES:
+ * - loaders que podían permanecer activos;
+ * - respuestas antiguas que podían sobrescribir una selección
+ *   más reciente;
+ * - recargas innecesarias después de cambiar un estado;
+ * - manejo consistente de errores y timeouts;
+ * - sincronización visual del ranking.
  *
- * - consultar vacantes administrables;
- * - seleccionar una vacante;
- * - consultar candidatos postulados;
- * - visualizar ranking por compatibilidad IA;
- * - visualizar similitud textual;
- * - visualizar coincidencia de habilidades;
- * - consultar habilidades coincidentes y faltantes;
- * - cambiar el estado del proceso de selección.
- *
- * IMPORTANTE:
- *
- * La IA NO selecciona automáticamente candidatos.
- *
- * El sistema únicamente genera una puntuación orientativa
- * para apoyar el proceso humano de reclutamiento.
- *
- * FLUJO:
- *
- * Reclutador
- *     ↓
- * selecciona vacante
- *     ↓
- * GET /postulaciones/ranking/{vacante_id}
- *     ↓
- * FastAPI
- *     ↓
- * PostgreSQL
- *     ↓
- * candidatos ordenados por puntuación IA
- *
+ * El ranking es orientativo. TalentIA no selecciona ni rechaza
+ * candidatos automáticamente.
  * ============================================================
  */
 
 import {
+  ChangeDetectorRef,
   Component,
   OnInit
 } from '@angular/core';
@@ -87,6 +64,17 @@ import {
 } from '../../models/postulacion';
 
 
+type FiltroEstado =
+  | 'todos'
+  | EstadoPostulacion;
+
+
+type OrdenCandidatos =
+  | 'compatibilidad'
+  | 'nombre'
+  | 'estado';
+
+
 @Component({
   selector: 'app-reclutador',
 
@@ -104,55 +92,67 @@ import {
   styleUrl:
     './reclutador.scss'
 })
-export class Reclutador implements OnInit {
+export class Reclutador
+  implements OnInit {
 
-  /**
-   * Vacantes que el usuario puede gestionar.
-   *
-   * Reclutador:
-   *     vacantes de su empresa.
-   *
-   * Administrador:
-   *     todas las vacantes.
-   */
-  vacantes: Vacante[] = [];
+  // ==========================================================
+  // DATOS
+  // ==========================================================
+
+  vacantes:
+    Vacante[] = [];
 
 
-  /**
-   * Identificador de la vacante seleccionada.
-   */
+  candidatos:
+    CandidatoRanking[] = [];
+
+
   vacanteSeleccionadaId:
     number | null = null;
 
 
-  /**
-   * Ranking recibido desde FastAPI.
-   */
-  ranking:
-    CandidatoRanking[] = [];
+  // ==========================================================
+  // FILTROS
+  // ==========================================================
+
+  busqueda = '';
 
 
-  /**
-   * Indicadores de carga.
-   */
+  filtroEstado:
+    FiltroEstado = 'todos';
+
+
+  orden:
+    OrdenCandidatos =
+    'compatibilidad';
+
+
+  // ==========================================================
+  // ESTADOS VISUALES
+  // ==========================================================
+
   cargandoVacantes = false;
 
   cargandoRanking = false;
 
-
-  /**
-   * ID de la postulación que está siendo actualizada.
-   */
-  actualizandoPostulacion:
+  cambiandoEstadoId:
     number | null = null;
 
 
-  /**
-   * Mensajes visuales.
-   */
   mensaje = '';
 
   error = '';
+
+
+  // ==========================================================
+  // CONTROL DE PETICIONES
+  // ==========================================================
+
+  private cargaVacantesId = 0;
+
+  private cargaRankingId = 0;
+
+  private cambioEstadoId = 0;
 
 
   constructor(
@@ -163,54 +163,25 @@ export class Reclutador implements OnInit {
       VacanteService,
 
     private readonly postulacionService:
-      PostulacionService
+      PostulacionService,
+
+    private readonly cdr:
+      ChangeDetectorRef
   ) {}
 
 
   // ==========================================================
-  // INICIALIZACIÓN
+  // INIT
   // ==========================================================
 
   ngOnInit(): void {
-
-    /**
-     * La interfaz valida el rol para mejorar la experiencia.
-     *
-     * La seguridad real permanece en FastAPI.
-     */
-    if (!this.puedeGestionar) {
-
-      this.error =
-        'No tienes permisos para acceder al panel de reclutamiento.';
-
-      return;
-    }
-
 
     this.cargarVacantes();
   }
 
 
   // ==========================================================
-  // ROLES
-  // ==========================================================
-
-  get puedeGestionar(): boolean {
-
-    const rol =
-      this.auth.usuario
-        ?.rol?.nombre;
-
-
-    return (
-      rol === 'reclutador' ||
-      rol === 'administrador'
-    );
-  }
-
-
-  // ==========================================================
-  // VACANTE SELECCIONADA
+  // VACANTE ACTUAL
   // ==========================================================
 
   get vacanteSeleccionada():
@@ -230,7 +201,9 @@ export class Reclutador implements OnInit {
         (vacante) =>
           vacante.id ===
           this.vacanteSeleccionadaId
-      ) ?? null
+      )
+      ??
+      null
     );
   }
 
@@ -239,83 +212,179 @@ export class Reclutador implements OnInit {
   // ESTADÍSTICAS
   // ==========================================================
 
-  /**
-   * Número total de candidatos de la vacante.
-   */
   get totalCandidatos(): number {
 
-    return this.ranking.length;
+    return this.candidatos.length;
   }
 
 
-  /**
-   * Promedio de compatibilidad IA.
-   */
   get promedioCompatibilidad():
     number {
 
-    if (
-      this.ranking.length === 0
-    ) {
+    const scores =
+      this.candidatos
+        .map(
+          (candidato) =>
+            candidato
+              .puntuacion_ia
+        )
+        .filter(
+          (
+            valor
+          ): valor is number =>
+            valor !== null
+            &&
+            valor !== undefined
+        );
+
+
+    if (!scores.length) {
 
       return 0;
     }
 
 
-    const total =
-      this.ranking.reduce(
+    return (
+      scores.reduce(
         (
           acumulado,
-          candidato
-        ) => {
-
-          return (
-            acumulado +
-            (
-              candidato
-                .puntuacion_ia ??
-              0
-            )
-          );
-        },
+          score
+        ) =>
+          acumulado + score,
         0
-      );
-
-
-    return (
-      total /
-      this.ranking.length
+      )
+      /
+      scores.length
     );
   }
 
 
-  /**
-   * Número de candidatos que llegaron a entrevista.
-   */
-  get totalEntrevistas():
-    number {
+  get enRevision(): number {
 
-    return this.ranking.filter(
+    return this.candidatos.filter(
       (candidato) =>
         candidato.estado ===
-          'entrevista' ||
-        candidato.estado ===
-          'seleccionado'
+        'revision'
     ).length;
   }
 
 
-  /**
-   * Número de candidatos seleccionados.
-   */
-  get totalSeleccionados():
-    number {
+  get entrevistas(): number {
 
-    return this.ranking.filter(
+    return this.candidatos.filter(
+      (candidato) =>
+        candidato.estado ===
+        'entrevista'
+    ).length;
+  }
+
+
+  get seleccionados(): number {
+
+    return this.candidatos.filter(
       (candidato) =>
         candidato.estado ===
         'seleccionado'
     ).length;
+  }
+
+
+  // ==========================================================
+  // FILTROS Y ORDEN
+  // ==========================================================
+
+  get candidatosFiltrados():
+    CandidatoRanking[] {
+
+    let resultado =
+      [...this.candidatos];
+
+
+    const termino =
+      this.busqueda
+        .trim()
+        .toLowerCase();
+
+
+    if (termino) {
+
+      resultado =
+        resultado.filter(
+          (candidato) => {
+
+            const contenido = [
+              candidato.nombre,
+              candidato.email
+            ]
+              .join(' ')
+              .toLowerCase();
+
+
+            return contenido
+              .includes(
+                termino
+              );
+          }
+        );
+    }
+
+
+    if (
+      this.filtroEstado !==
+      'todos'
+    ) {
+
+      resultado =
+        resultado.filter(
+          (candidato) =>
+            candidato.estado ===
+            this.filtroEstado
+        );
+    }
+
+
+    switch (
+      this.orden
+    ) {
+
+      case 'nombre':
+
+        resultado.sort(
+          (a, b) =>
+            a.nombre.localeCompare(
+              b.nombre
+            )
+        );
+
+        break;
+
+
+      case 'estado':
+
+        resultado.sort(
+          (a, b) =>
+            a.estado.localeCompare(
+              b.estado
+            )
+        );
+
+        break;
+
+
+      case 'compatibilidad':
+
+      default:
+
+        resultado.sort(
+          (a, b) =>
+            this.score(b)
+            -
+            this.score(a)
+        );
+    }
+
+
+    return resultado;
   }
 
 
@@ -325,12 +394,18 @@ export class Reclutador implements OnInit {
 
   cargarVacantes(): void {
 
+    const idActual =
+      ++this.cargaVacantesId;
+
+
     this.cargandoVacantes =
       true;
 
-    this.error = '';
+    this.error =
+      '';
 
-    this.mensaje = '';
+
+    this.refrescarVista();
 
 
     this.vacanteService
@@ -339,27 +414,79 @@ export class Reclutador implements OnInit {
 
         next: (vacantes) => {
 
+          if (
+            idActual !==
+            this.cargaVacantesId
+          ) {
+
+            return;
+          }
+
+
+          const lista =
+            Array.isArray(
+              vacantes
+            )
+              ? vacantes
+              : [];
+
+
           this.vacantes =
-            vacantes;
+            lista;
+
 
           this.cargandoVacantes =
             false;
 
 
-          /**
-           * Seleccionamos automáticamente la primera
-           * vacante disponible para mostrar información
-           * inmediatamente.
-           */
+          // --------------------------------------------------
+          // CONSERVAR SELECCIÓN SI SIGUE EXISTIENDO
+          // --------------------------------------------------
+
+          const seleccionSigueDisponible =
+            this.vacanteSeleccionadaId !==
+              null
+            &&
+            lista.some(
+              (vacante) =>
+                vacante.id ===
+                this.vacanteSeleccionadaId
+            );
+
+
           if (
-            this.vacantes.length > 0
+            seleccionSigueDisponible
           ) {
 
-            this.vacanteSeleccionadaId =
-              this.vacantes[0].id;
+            /**
+             * Refrescamos el ranking de la misma vacante.
+             */
+            this.cargarRanking(
+              this.vacanteSeleccionadaId!
+            );
 
-            this.cargarRanking();
+          } else if (
+            lista.length > 0
+          ) {
+
+            this.seleccionarVacante(
+              lista[0].id
+            );
+
+          } else {
+
+            this.vacanteSeleccionadaId =
+              null;
+
+            this.candidatos =
+              [];
+
+            this.cargandoRanking =
+              false;
           }
+
+
+          this.refrescarVista();
         },
 
 
@@ -368,96 +495,187 @@ export class Reclutador implements OnInit {
             HttpErrorResponse
         ) => {
 
+          if (
+            idActual !==
+            this.cargaVacantesId
+          ) {
+
+            return;
+          }
+
+
           this.cargandoVacantes =
             false;
+
+          this.cargandoRanking =
+            false;
+
+          this.vacantes =
+            [];
+
+          this.candidatos =
+            [];
+
+          this.vacanteSeleccionadaId =
+            null;
+
 
           this.error =
             this.obtenerMensajeError(
               respuesta,
               'No fue posible cargar las vacantes.'
             );
+
+
+          this.refrescarVista();
+        },
+
+
+        complete: () => {
+
+          if (
+            idActual !==
+            this.cargaVacantesId
+          ) {
+
+            return;
+          }
+
+
+          this.cargandoVacantes =
+            false;
+
+
+          this.refrescarVista();
         }
       });
   }
 
 
   // ==========================================================
-  // CAMBIO DE VACANTE
+  // SELECCIONAR VACANTE
   // ==========================================================
 
-  cambiarVacante(): void {
+  seleccionarVacante(
+    vacanteId:
+      number | null
+  ): void {
 
-    this.ranking = [];
+    this.vacanteSeleccionadaId =
+      vacanteId;
 
-    this.error = '';
 
-    this.mensaje = '';
+    this.candidatos =
+      [];
+
+    this.busqueda =
+      '';
+
+    this.filtroEstado =
+      'todos';
+
+    this.mensaje =
+      '';
+
+    this.error =
+      '';
+
+
+    /**
+     * Invalida cualquier ranking anterior que todavía
+     * estuviera en vuelo.
+     */
+    ++this.cargaRankingId;
 
 
     if (
-      this.vacanteSeleccionadaId ===
-      null
+      vacanteId === null
     ) {
+
+      this.cargandoRanking =
+        false;
+
+      this.refrescarVista();
 
       return;
     }
 
 
-    this.cargarRanking();
+    this.cargarRanking(
+      vacanteId
+    );
   }
 
 
   // ==========================================================
-  // RANKING IA
+  // RANKING
   // ==========================================================
 
-  cargarRanking(): void {
+  cargarRanking(
+    vacanteId:
+      number
+  ): void {
 
-    if (
-      this.vacanteSeleccionadaId ===
-      null
-    ) {
-
-      return;
-    }
+    const idActual =
+      ++this.cargaRankingId;
 
 
     this.cargandoRanking =
       true;
 
-    this.error = '';
+    this.error =
+      '';
+
+
+    this.refrescarVista();
 
 
     this.postulacionService
       .obtenerRanking(
-        this.vacanteSeleccionadaId
+        vacanteId
       )
       .subscribe({
 
-        next: (ranking) => {
+        next: (candidatos) => {
 
-          /**
-           * FastAPI ya devuelve el ranking ordenado
-           * por puntuación.
-           *
-           * Ordenamos nuevamente como medida defensiva
-           * para garantizar la presentación.
-           */
-          this.ranking =
-            [...ranking].sort(
-              (a, b) =>
-                (
-                  b.puntuacion_ia ??
-                  0
-                ) -
-                (
-                  a.puntuacion_ia ??
-                  0
-                )
-            );
+          if (
+            idActual !==
+              this.cargaRankingId
+            ||
+            this.vacanteSeleccionadaId !==
+              vacanteId
+          ) {
+
+            return;
+          }
+
+
+          const lista =
+            Array.isArray(
+              candidatos
+            )
+              ? candidatos
+              : [];
+
+
+          this.candidatos =
+            [...lista]
+              .sort(
+                (a, b) =>
+                  this.score(b)
+                  -
+                  this.score(a)
+              );
+
 
           this.cargandoRanking =
             false;
+
+          this.error =
+            '';
+
+
+          this.refrescarVista();
         },
 
 
@@ -466,110 +684,251 @@ export class Reclutador implements OnInit {
             HttpErrorResponse
         ) => {
 
+          if (
+            idActual !==
+              this.cargaRankingId
+            ||
+            this.vacanteSeleccionadaId !==
+              vacanteId
+          ) {
+
+            return;
+          }
+
+
+          this.candidatos =
+            [];
+
           this.cargandoRanking =
             false;
+
 
           this.error =
             this.obtenerMensajeError(
               respuesta,
               'No fue posible cargar el ranking de candidatos.'
             );
+
+
+          this.refrescarVista();
+        },
+
+
+        complete: () => {
+
+          if (
+            idActual !==
+              this.cargaRankingId
+            ||
+            this.vacanteSeleccionadaId !==
+              vacanteId
+          ) {
+
+            return;
+          }
+
+
+          this.cargandoRanking =
+            false;
+
+
+          this.refrescarVista();
         }
       });
   }
 
 
   // ==========================================================
-  // POSICIÓN EN EL RANKING
+  // RECARGAR
   // ==========================================================
 
-  /**
-   * Las posiciones visuales empiezan en 1.
-   */
-  posicion(
-    indice: number
-  ): number {
+  recargarRanking(): void {
 
-    return indice + 1;
+    if (
+      this.vacanteSeleccionadaId ===
+      null
+    ) {
+
+      this.cargarVacantes();
+
+      return;
+    }
+
+
+    this.cargarRanking(
+      this.vacanteSeleccionadaId
+    );
   }
 
 
   // ==========================================================
-  // CLASIFICACIÓN VISUAL
+  // CAMBIAR ESTADO
   // ==========================================================
 
-  /**
-   * Convierte una puntuación en una categoría visual.
-   *
-   * Coincide conceptualmente con el backend:
-   *
-   * < 40   -> baja
-   * < 65   -> media
-   * < 80   -> alta
-   * >= 80  -> muy alta
-   */
-  clasificacion(
-    puntuacion:
-      number | null
-  ): string {
+  cambiarEstado(
+    candidato:
+      CandidatoRanking,
 
-    const valor =
-      puntuacion ?? 0;
+    nuevoEstado:
+      EstadoPostulacion
+  ): void {
 
+    if (
+      nuevoEstado ===
+      candidato.estado
+      ||
+      this.cambiandoEstadoId !==
+        null
+    ) {
 
-    if (valor < 40) {
-
-      return 'Baja';
+      return;
     }
 
 
-    if (valor < 65) {
-
-      return 'Media';
-    }
+    const cambioActual =
+      ++this.cambioEstadoId;
 
 
-    if (valor < 80) {
+    this.error =
+      '';
 
-      return 'Alta';
-    }
+    this.mensaje =
+      '';
+
+    this.cambiandoEstadoId =
+      candidato.postulacion_id;
 
 
-    return 'Muy alta';
+    this.refrescarVista();
+
+
+    this.postulacionService
+      .actualizarEstado(
+        candidato.postulacion_id,
+        {
+          estado:
+            nuevoEstado
+        }
+      )
+      .subscribe({
+
+        next: (postulacion) => {
+
+          if (
+            cambioActual !==
+            this.cambioEstadoId
+          ) {
+
+            return;
+          }
+
+
+          /**
+           * El score del ranking no cambia al avanzar de etapa,
+           * por lo que no necesitamos hacer otra petición HTTP.
+           * Actualizamos únicamente el candidato afectado.
+           */
+          this.candidatos =
+            this.candidatos.map(
+              (actual) =>
+                actual.postulacion_id ===
+                candidato.postulacion_id
+                  ? {
+                      ...actual,
+                      estado:
+                        postulacion.estado
+                    }
+                  : actual
+            );
+
+
+          this.cambiandoEstadoId =
+            null;
+
+
+          this.mensaje =
+            (
+              `El estado de ${candidato.nombre} `
+              +
+              `cambió a ${this.etiquetaEstado(postulacion.estado)}.`
+            );
+
+
+          this.refrescarVista();
+        },
+
+
+        error: (
+          respuesta:
+            HttpErrorResponse
+        ) => {
+
+          if (
+            cambioActual !==
+            this.cambioEstadoId
+          ) {
+
+            return;
+          }
+
+
+          this.cambiandoEstadoId =
+            null;
+
+
+          this.error =
+            this.obtenerMensajeError(
+              respuesta,
+              'No fue posible actualizar el estado del candidato.'
+            );
+
+
+          /**
+           * candidato.estado nunca fue modificado de forma
+           * optimista, así que el select vuelve al valor real.
+           */
+          this.refrescarVista();
+        },
+
+
+        complete: () => {
+
+          if (
+            cambioActual !==
+            this.cambioEstadoId
+            &&
+            this.cambiandoEstadoId !==
+            null
+          ) {
+
+            return;
+          }
+
+
+          this.cambiandoEstadoId =
+            null;
+
+
+          this.refrescarVista();
+        }
+      });
   }
 
 
   // ==========================================================
-  // ESTADOS DISPONIBLES
+  // TRANSICIONES PERMITIDAS
   // ==========================================================
 
-  /**
-   * Devuelve únicamente transiciones compatibles
-   * con las reglas del backend.
-   *
-   * pendiente
-   *   -> revision
-   *   -> rechazado
-   *
-   * revision
-   *   -> entrevista
-   *   -> rechazado
-   *
-   * entrevista
-   *   -> seleccionado
-   *   -> rechazado
-   *
-   * seleccionado / rechazado
-   *   -> estados terminales
-   */
-  estadosDisponibles(
-    estadoActual:
+  opcionesEstado(
+    estado:
       EstadoPostulacion
   ): EstadoPostulacion[] {
 
-    switch (
-      estadoActual
-    ) {
+    /**
+     * Estas transiciones son exactamente las mismas que valida
+     * FastAPI en TRANSICIONES_ESTADO.
+     */
+    switch (estado) {
 
       case 'pendiente':
 
@@ -615,111 +974,239 @@ export class Reclutador implements OnInit {
       default:
 
         return [
-          estadoActual
+          estado
         ];
     }
   }
 
 
   // ==========================================================
-  // ACTUALIZAR ESTADO
+  // UTILIDADES DEL MATCHING
   // ==========================================================
 
-  cambiarEstado(
+  score(
     candidato:
-      CandidatoRanking,
-
-    nuevoEstado:
-      EstadoPostulacion
-  ): void {
-
-    /**
-     * No enviamos una petición innecesaria si el estado
-     * seleccionado es exactamente el mismo.
-     */
-    if (
-      candidato.estado ===
-      nuevoEstado
-    ) {
-
-      return;
-    }
-
-
-    this.error = '';
-
-    this.mensaje = '';
-
-    this.actualizandoPostulacion =
-      candidato.postulacion_id;
-
-
-    this.postulacionService
-      .cambiarEstado(
-        candidato.postulacion_id,
-        nuevoEstado
-      )
-      .subscribe({
-
-        next: () => {
-
-          this.actualizandoPostulacion =
-            null;
-
-          this.mensaje =
-            `El estado de ${candidato.nombre} fue actualizado correctamente.`;
-
-          /**
-           * Recargamos desde PostgreSQL para que la pantalla
-           * siempre represente la información real.
-           */
-          this.cargarRanking();
-        },
-
-
-        error: (
-          respuesta:
-            HttpErrorResponse
-        ) => {
-
-          this.actualizandoPostulacion =
-            null;
-
-          this.error =
-            this.obtenerMensajeError(
-              respuesta,
-              'No fue posible actualizar el estado del candidato.'
-            );
-
-
-          /**
-           * Si la transición fue inválida,
-           * restauramos los datos reales.
-           */
-          this.cargarRanking();
-        }
-      });
-  }
-
-
-  // ==========================================================
-  // CLASE DE ESTADO
-  // ==========================================================
-
-  claseEstado(
-    estado:
-      EstadoPostulacion
-  ): string {
+      CandidatoRanking
+  ): number {
 
     return (
-      'estado-' +
-      estado
+      candidato
+        .puntuacion_ia
+      ??
+      0
     );
   }
 
 
+  coincidencias(
+    candidato:
+      CandidatoRanking
+  ): string[] {
+
+    return (
+      candidato
+        .habilidades_coincidentes
+      ??
+      []
+    );
+  }
+
+
+  brechas(
+    candidato:
+      CandidatoRanking
+  ): string[] {
+
+    return (
+      candidato
+        .habilidades_faltantes
+      ??
+      []
+    );
+  }
+
+
+  clasificacion(
+    puntuacion:
+      number | null | undefined
+  ): string {
+
+    const valor =
+      puntuacion ?? 0;
+
+
+    if (
+      valor >= 80
+    ) {
+
+      return 'Muy alta';
+    }
+
+
+    if (
+      valor >= 65
+    ) {
+
+      return 'Alta';
+    }
+
+
+    if (
+      valor >= 40
+    ) {
+
+      return 'Media';
+    }
+
+
+    return 'Baja';
+  }
+
+
+  claseScore(
+    puntuacion:
+      number | null | undefined
+  ): string {
+
+    const valor =
+      puntuacion ?? 0;
+
+
+    if (
+      valor >= 80
+    ) {
+
+      return 'very-high';
+    }
+
+
+    if (
+      valor >= 65
+    ) {
+
+      return 'high';
+    }
+
+
+    if (
+      valor >= 40
+    ) {
+
+      return 'medium';
+    }
+
+
+    return 'low';
+  }
+
+
   // ==========================================================
-  // ERRORES
+  // USUARIO
+  // ==========================================================
+
+  iniciales(
+    nombre:
+      string
+  ): string {
+
+    const partes =
+      nombre
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+
+    if (!partes.length) {
+
+      return '?';
+    }
+
+
+    if (
+      partes.length === 1
+    ) {
+
+      return partes[0]
+        .charAt(0)
+        .toUpperCase();
+    }
+
+
+    return (
+      partes[0].charAt(0)
+      +
+      partes[
+        partes.length - 1
+      ].charAt(0)
+    ).toUpperCase();
+  }
+
+
+  // ==========================================================
+  // ESTADO LEGIBLE
+  // ==========================================================
+
+  etiquetaEstado(
+    estado:
+      EstadoPostulacion
+  ): string {
+
+    switch (estado) {
+
+      case 'pendiente':
+
+        return 'Pendiente';
+
+
+      case 'revision':
+
+        return 'En revisión';
+
+
+      case 'entrevista':
+
+        return 'Entrevista';
+
+
+      case 'seleccionado':
+
+        return 'Seleccionado';
+
+
+      case 'rechazado':
+
+        return 'Rechazado';
+
+
+      default:
+
+        return estado;
+    }
+  }
+
+
+  // ==========================================================
+  // DETECCIÓN DE CAMBIOS
+  // ==========================================================
+
+  private refrescarVista(): void {
+
+    try {
+
+      this.cdr
+        .detectChanges();
+
+    } catch {
+
+      /**
+       * Angular realizará el siguiente ciclo automáticamente.
+       */
+    }
+  }
+
+
+  // ==========================================================
+  // ERROR
   // ==========================================================
 
   private obtenerMensajeError(
@@ -734,9 +1221,34 @@ export class Reclutador implements OnInit {
       respuesta.status === 0
     ) {
 
+      const detail =
+        respuesta
+          .error?.detail;
+
+
+      if (
+        typeof detail ===
+        'string'
+      ) {
+
+        return detail;
+      }
+
+
       return (
-        'No fue posible conectar con FastAPI. ' +
-        'Verifica que el backend esté ejecutándose.'
+        'No hay conexión con FastAPI o la petición tardó demasiado. '
+        +
+        'Verifica el backend y vuelve a intentarlo.'
+      );
+    }
+
+
+    if (
+      respuesta.status === 401
+    ) {
+
+      return (
+        'Tu sesión ya no es válida. Vuelve a iniciar sesión.'
       );
     }
 
@@ -746,26 +1258,22 @@ export class Reclutador implements OnInit {
     ) {
 
       return (
-        typeof respuesta
-          .error?.detail ===
-        'string'
-          ? respuesta.error.detail
-          : 'No tienes permisos para realizar esta acción.'
+        'No tienes permiso para gestionar este proceso.'
       );
     }
 
 
     if (
       respuesta.status === 409
+      &&
+      typeof respuesta
+        .error?.detail ===
+      'string'
     ) {
 
-      return (
-        typeof respuesta
-          .error?.detail ===
-        'string'
-          ? respuesta.error.detail
-          : 'La transición de estado solicitada no es válida.'
-      );
+      return respuesta
+        .error
+        .detail;
     }
 
 

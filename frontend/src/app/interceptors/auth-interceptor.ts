@@ -1,40 +1,14 @@
 /**
  * ============================================================
- * TalentIA - Interceptor de autenticación JWT
+ * TalentIA - Interceptor JWT
  * Archivo: src/app/interceptors/auth-interceptor.ts
  * ============================================================
  *
- * Este interceptor se ejecuta automáticamente antes de cada
- * petición HTTP realizada por Angular.
- *
- * RESPONSABILIDADES:
- *
- * 1. Detectar peticiones dirigidas al backend TalentIA.
- * 2. Obtener el JWT almacenado por AuthService.
- * 3. Agregar:
- *
- *      Authorization: Bearer TOKEN
- *
- * 4. Detectar respuestas HTTP 401.
- * 5. Limpiar una sesión inválida o vencida.
- *
- * FLUJO:
- *
- * Componente
- *    |
- *    v
- * Servicio Angular
- *    |
- *    v
- * HttpClient
- *    |
- *    v
- * authInterceptor
- *    |
- *    | Authorization: Bearer JWT
- *    v
- * FastAPI
- *
+ * - Adjunta el JWT únicamente a nuestra API.
+ * - No adjunta un token antiguo a login o registro.
+ * - Limpia JWT vencidos.
+ * - Solo fuerza /login cuando el usuario estaba en una
+ *   sección protegida.
  * ============================================================
  */
 
@@ -61,77 +35,72 @@ import {
 } from '../services/auth';
 
 
-/**
- * Dirección base del backend.
- *
- * Solo agregaremos el JWT a peticiones destinadas a TalentIA.
- *
- * Esto es importante porque no debemos enviar nuestro token
- * accidentalmente a otros servidores externos.
- */
 const API_BASE_URL =
   'http://127.0.0.1:8000';
 
 
-/**
- * Interceptor funcional.
- *
- * Angular moderno permite interceptores mediante funciones
- * en lugar de clases que implementan HttpInterceptor.
- */
+const RUTAS_AUTH_PUBLICAS = [
+  '/auth/login',
+  '/auth/register'
+];
+
+
+const RUTAS_PROTEGIDAS_FRONTEND = [
+  '/perfil',
+  '/postulaciones',
+  '/reclutador'
+];
+
+
 export const authInterceptor:
   HttpInterceptorFn =
-  (request, next) => {
-
-    // --------------------------------------------------------
-    // 1. OBTENER DEPENDENCIAS
-    // --------------------------------------------------------
+  (
+    request,
+    next
+  ) => {
 
     const auth =
-      inject(AuthService);
+      inject(
+        AuthService
+      );
 
     const router =
-      inject(Router);
+      inject(
+        Router
+      );
 
 
-    // --------------------------------------------------------
-    // 2. COMPROBAR SI LA PETICIÓN ES HACIA TALENTIA
-    // --------------------------------------------------------
-
-    const esPeticionBackend =
+    const esBackend =
       request.url.startsWith(
         API_BASE_URL
       );
 
 
-    // --------------------------------------------------------
-    // 3. OBTENER JWT
-    // --------------------------------------------------------
+    const esAuthPublica =
+      RUTAS_AUTH_PUBLICAS
+        .some(
+          (ruta) =>
+            request.url.includes(
+              ruta
+            )
+        );
+
 
     const token =
       auth.obtenerToken();
 
 
-    // --------------------------------------------------------
-    // 4. CLONAR PETICIÓN Y AGREGAR AUTHORIZATION
-    // --------------------------------------------------------
+    let requestFinal =
+      request;
+
 
     /**
-     * Los objetos HttpRequest son inmutables.
-     *
-     * No podemos hacer:
-     *
-     * request.headers = ...
-     *
-     * Por eso Angular utiliza:
-     *
-     * request.clone()
+     * Login y registro deben ejecutarse sin reutilizar
+     * accidentalmente un JWT antiguo.
      */
-
-    let requestFinal = request;
-
     if (
-      esPeticionBackend &&
+      esBackend &&
+      !esAuthPublica &&
       token
     ) {
 
@@ -142,84 +111,76 @@ export const authInterceptor:
               `Bearer ${token}`
           }
         });
-
     }
 
 
-    // --------------------------------------------------------
-    // 5. ENVIAR PETICIÓN
-    // --------------------------------------------------------
-
     return next(
       requestFinal
-    ).pipe(
+    )
+      .pipe(
 
-      // ------------------------------------------------------
-      // 6. MANEJAR ERRORES HTTP
-      // ------------------------------------------------------
+        catchError(
+          (
+            error:
+              HttpErrorResponse
+          ) => {
 
-      catchError(
-        (
-          error: HttpErrorResponse
-        ) => {
+            if (
+              error.status === 401 &&
+              !esAuthPublica &&
+              token
+            ) {
 
-          /**
-           * HTTP 401 significa que FastAPI no pudo autenticar
-           * correctamente la petición.
-           *
-           * Puede ocurrir porque:
-           *
-           * - el JWT venció;
-           * - fue modificado;
-           * - tiene firma inválida;
-           * - el usuario ya no existe.
-           */
+              auth.limpiarSesion();
 
-          if (
-            error.status === 401 &&
-            token
-          ) {
 
-            // Limpiamos la sesión local.
-            auth.limpiarSesion();
+              /**
+               * /vacantes es pública. Si el JWT expiró
+               * mientras el usuario estaba allí, simplemente
+               * dejamos la sesión cerrada.
+               *
+               * Para secciones privadas sí enviamos a login.
+               */
+              const rutaActual =
+                router.url
+                  .split('?')[0]
+                  .split('#')[0];
 
-            /**
-             * Evitamos redirigir innecesariamente cuando
-             * ya estamos intentando iniciar sesión.
-             *
-             * Un login con contraseña incorrecta también
-             * devuelve HTTP 401.
-             */
-            const esLogin =
-              request.url.includes(
-                '/auth/login'
-              );
 
-            if (!esLogin) {
+              const estabaEnRutaProtegida =
+                RUTAS_PROTEGIDAS_FRONTEND
+                  .some(
+                    (ruta) =>
+                      rutaActual.startsWith(
+                        ruta
+                      )
+                  );
 
-              router.navigate([
-                '/login'
-              ]);
 
+              if (
+                estabaEnRutaProtegida
+              ) {
+
+                void router.navigate(
+                  ['/login'],
+                  {
+                    queryParams: {
+                      returnUrl:
+                        rutaActual,
+
+                      sesion:
+                        'expirada'
+                    }
+                  }
+                );
+              }
             }
+
+
+            return throwError(
+              () => error
+            );
           }
-
-
-          /**
-           * El error debe continuar hacia el componente.
-           *
-           * Así las pantallas también pueden mostrar:
-           *
-           * "Correo o contraseña incorrectos"
-           *
-           * "No tienes permisos"
-           *
-           * etc.
-           */
-          return throwError(
-            () => error
-          );
-        }
-      )
-    );
+        )
+      );
   };

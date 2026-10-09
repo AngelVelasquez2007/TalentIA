@@ -1,42 +1,7 @@
 /**
  * ============================================================
- * TalentIA - Página de registro
+ * TalentIA - Registro de candidatos
  * Archivo: src/app/pages/registro/registro.ts
- * ============================================================
- *
- * Permite registrar nuevos usuarios con rol "candidato".
- *
- * IMPORTANTE:
- *
- * El frontend NO permite escoger el rol.
- *
- * Cuando se envía:
- *
- * POST /auth/register
- *
- * FastAPI asigna automáticamente:
- *
- *     rol = candidato
- *
- * Esto evita que alguien modifique el formulario e intente
- * crearse una cuenta de administrador o reclutador.
- *
- * FLUJO:
- *
- * Formulario Angular
- *       ↓
- * Validaciones
- *       ↓
- * AuthService.registrar()
- *       ↓
- * POST /auth/register
- *       ↓
- * FastAPI
- *       ↓
- * PostgreSQL
- *       ↓
- * Redirección a /login
- *
  * ============================================================
  */
 
@@ -72,25 +37,19 @@ import {
 } from '../../services/auth';
 
 
-/**
- * ============================================================
- * VALIDADOR DE CONTRASEÑAS
- * ============================================================
- *
- * Comprueba que:
- *
- * password === confirmarPassword
- */
 const passwordsIgualesValidator:
   ValidatorFn =
   (
-    control: AbstractControl
+    control:
+      AbstractControl
   ): ValidationErrors | null => {
 
     const password =
-      control.get('password')?.value;
+      control.get(
+        'password'
+      )?.value;
 
-    const confirmarPassword =
+    const confirmacion =
       control.get(
         'confirmarPassword'
       )?.value;
@@ -98,7 +57,7 @@ const passwordsIgualesValidator:
 
     if (
       !password ||
-      !confirmarPassword
+      !confirmacion
     ) {
 
       return null;
@@ -106,7 +65,7 @@ const passwordsIgualesValidator:
 
 
     return (
-      password === confirmarPassword
+      password === confirmacion
         ? null
         : {
             passwordsNoCoinciden:
@@ -135,34 +94,16 @@ const passwordsIgualesValidator:
 })
 export class Registro {
 
-  /**
-   * Formulario reactivo de registro.
-   */
-  formulario: FormGroup;
+  formulario:
+    FormGroup;
 
 
-  /**
-   * Estado visual mientras FastAPI procesa
-   * la solicitud.
-   */
   cargando = false;
 
-
-  /**
-   * Mensaje de error.
-   */
   error = '';
 
-
-  /**
-   * Permite mostrar u ocultar la contraseña.
-   */
   mostrarPassword = false;
 
-
-  /**
-   * Permite mostrar u ocultar la confirmación.
-   */
   mostrarConfirmacion = false;
 
 
@@ -180,11 +121,6 @@ export class Registro {
     this.formulario =
       this.fb.group(
         {
-
-          // --------------------------------------------------
-          // NOMBRE
-          // --------------------------------------------------
-
           nombre: [
             '',
             [
@@ -193,11 +129,6 @@ export class Registro {
               Validators.maxLength(80)
             ]
           ],
-
-
-          // --------------------------------------------------
-          // APELLIDO
-          // --------------------------------------------------
 
           apellido: [
             '',
@@ -208,11 +139,6 @@ export class Registro {
             ]
           ],
 
-
-          // --------------------------------------------------
-          // EMAIL
-          // --------------------------------------------------
-
           email: [
             '',
             [
@@ -221,37 +147,16 @@ export class Registro {
             ]
           ],
 
-
-          // --------------------------------------------------
-          // CONTRASEÑA
-          // --------------------------------------------------
-
-          /**
-           * El backend exige:
-           *
-           * - mínimo 8 caracteres;
-           * - al menos una letra;
-           * - al menos un número.
-           */
           password: [
             '',
             [
               Validators.required,
-
-              Validators.minLength(
-                8
-              ),
-
+              Validators.minLength(8),
               Validators.pattern(
                 /^(?=.*[A-Za-z])(?=.*\d).+$/
               )
             ]
           ],
-
-
-          // --------------------------------------------------
-          // CONFIRMACIÓN
-          // --------------------------------------------------
 
           confirmarPassword: [
             '',
@@ -260,7 +165,6 @@ export class Registro {
             ]
           ]
         },
-
         {
           validators:
             passwordsIgualesValidator
@@ -268,10 +172,6 @@ export class Registro {
       );
   }
 
-
-  // ==========================================================
-  // ACCESOS RÁPIDOS AL FORMULARIO
-  // ==========================================================
 
   get nombre() {
 
@@ -313,10 +213,6 @@ export class Registro {
   }
 
 
-  // ==========================================================
-  // MOSTRAR / OCULTAR CONTRASEÑAS
-  // ==========================================================
-
   alternarPassword(): void {
 
     this.mostrarPassword =
@@ -331,18 +227,16 @@ export class Registro {
   }
 
 
-  // ==========================================================
-  // REGISTRO
-  // ==========================================================
-
   registrar(): void {
+
+    if (this.cargando) {
+
+      return;
+    }
+
 
     this.error = '';
 
-
-    // --------------------------------------------------------
-    // VALIDAR FORMULARIO
-    // --------------------------------------------------------
 
     if (
       this.formulario.invalid
@@ -355,44 +249,47 @@ export class Registro {
     }
 
 
-    this.cargando = true;
-
-
-    // --------------------------------------------------------
-    // CONSTRUIR PAYLOAD
-    // --------------------------------------------------------
-
     const datos = {
 
       nombre:
-        this.formulario
-          .value
-          .nombre
-          .trim(),
+        String(
+          this.formulario
+            .value
+            .nombre ??
+          ''
+        ).trim(),
 
       apellido:
-        this.formulario
-          .value
-          .apellido
-          .trim(),
+        String(
+          this.formulario
+            .value
+            .apellido ??
+          ''
+        ).trim(),
 
       email:
-        this.formulario
-          .value
-          .email
+        String(
+          this.formulario
+            .value
+            .email ??
+          ''
+        )
           .trim()
           .toLowerCase(),
 
       password:
-        this.formulario
-          .value
-          .password
+        String(
+          this.formulario
+            .value
+            .password ??
+          ''
+        )
     };
 
 
-    // --------------------------------------------------------
-    // LLAMAR FASTAPI
-    // --------------------------------------------------------
+    this.cargando =
+      true;
+
 
     this.auth
       .registrar(
@@ -406,16 +303,15 @@ export class Registro {
             false;
 
 
-          /**
-           * Después del registro enviamos al login.
-           *
-           * La autenticación sigue siendo un paso separado:
-           *
-           * registro -> login -> JWT
-           */
-          this.router.navigate([
-            '/login'
-          ]);
+          void this.router.navigate(
+            ['/login'],
+            {
+              queryParams: {
+                registro:
+                  'ok'
+              }
+            }
+          );
         },
 
 
@@ -431,26 +327,38 @@ export class Registro {
             this.obtenerMensajeError(
               respuesta
             );
+        },
+
+
+        complete: () => {
+
+          this.cargando =
+            false;
         }
       });
   }
 
 
-  // ==========================================================
-  // MANEJO DE ERRORES
-  // ==========================================================
-
   private obtenerMensajeError(
-    respuesta: HttpErrorResponse
+    respuesta:
+      HttpErrorResponse
   ): string {
 
-    /**
-     * status 0 normalmente significa que Angular
-     * no pudo establecer conexión con FastAPI.
-     */
     if (
       respuesta.status === 0
     ) {
+
+      if (
+        typeof respuesta
+          .error?.detail ===
+        'string'
+      ) {
+
+        return respuesta
+          .error
+          .detail;
+      }
+
 
       return (
         'No fue posible conectar con el servidor. ' +
@@ -459,57 +367,57 @@ export class Registro {
     }
 
 
-    /**
-     * 409 puede ocurrir si el correo ya existe.
-     */
     if (
       respuesta.status === 409
     ) {
 
       return (
-        typeof respuesta.error
-          ?.detail ===
+        typeof respuesta
+          .error?.detail ===
         'string'
-          ? respuesta.error.detail
+          ? respuesta
+              .error
+              .detail
           : 'Ya existe una cuenta registrada con este correo.'
       );
     }
 
 
-    /**
-     * FastAPI puede devolver detail directamente
-     * como string.
-     */
     if (
-      typeof respuesta.error
-        ?.detail ===
+      typeof respuesta
+        .error?.detail ===
       'string'
     ) {
 
-      return respuesta.error.detail;
+      return respuesta
+        .error
+        .detail;
     }
 
 
-    /**
-     * Los errores de validación de Pydantic pueden
-     * llegar como una lista.
-     */
     if (
       Array.isArray(
-        respuesta.error?.detail
+        respuesta
+          .error?.detail
       ) &&
-      respuesta.error.detail.length
+      respuesta
+        .error
+        .detail
+        .length > 0
     ) {
 
-      const primerError =
-        respuesta.error.detail[0];
+      const detalle =
+        respuesta
+          .error
+          .detail[0];
+
 
       if (
-        typeof primerError?.msg ===
+        typeof detalle?.msg ===
         'string'
       ) {
 
-        return primerError.msg;
+        return detalle.msg;
       }
     }
 
