@@ -4,14 +4,16 @@
  * Archivo: src/app/app.ts
  * ============================================================
  *
- * Es el componente principal de toda la aplicación.
+ * Este componente permanece activo durante toda la ejecución
+ * de Angular.
  *
  * RESPONSABILIDADES:
  *
- * - renderizar navegación global;
- * - renderizar router-outlet;
- * - exponer AuthService al template;
- * - restaurar una sesión existente al iniciar Angular.
+ * - mostrar la navegación principal;
+ * - renderizar las páginas mediante router-outlet;
+ * - restaurar una sesión existente;
+ * - cerrar sesión;
+ * - redirigir al catálogo después del logout.
  *
  * ============================================================
  */
@@ -26,6 +28,7 @@ import {
 } from '@angular/common';
 
 import {
+  Router,
   RouterLink,
   RouterOutlet
 } from '@angular/router';
@@ -57,52 +60,84 @@ export class App
 
   constructor(
     /**
-     * Es public para que app.html pueda utilizar:
-     *
-     * auth.autenticado
-     * auth.usuario
-     * auth.logout()
+     * Public permite utilizar AuthService
+     * directamente desde app.html.
      */
     public readonly auth:
-      AuthService
+      AuthService,
+
+    private readonly router:
+      Router
   ) {}
 
 
   // ==========================================================
-  // INICIALIZACIÓN
+  // INICIO DE LA APLICACIÓN
   // ==========================================================
 
   ngOnInit(): void {
 
     /**
-     * Si no existe JWT, no hay nada que restaurar.
+     * Si existe JWT en sessionStorage intentamos recuperar
+     * el usuario autenticado mediante GET /auth/me.
      */
     const restauracion =
       this.auth
         .restaurarSesion();
 
 
+    /**
+     * Si no existe JWT no hay sesión que restaurar.
+     */
     if (!restauracion) {
-
       return;
     }
 
 
-    /**
-     * Si existe un token almacenado consultamos /auth/me.
-     *
-     * Si el token sigue siendo válido, AuthService recuperará
-     * el usuario.
-     *
-     * Si está vencido, limpiamos la sesión.
-     */
     restauracion.subscribe({
 
+      /**
+       * cargarUsuarioActual() ya actualiza internamente
+       * el BehaviorSubject de AuthService.
+       */
+      next: () => {
+        // No necesitamos realizar otra acción.
+      },
+
+
+      /**
+       * Si el token está vencido o es inválido,
+       * eliminamos la sesión almacenada.
+       */
       error: () => {
 
         this.auth
           .limpiarSesion();
       }
     });
+  }
+
+
+  // ==========================================================
+  // CERRAR SESIÓN
+  // ==========================================================
+
+  cerrarSesion(): void {
+
+    /**
+     * Elimina:
+     *
+     * - JWT de sessionStorage;
+     * - usuario almacenado en AuthService.
+     */
+    this.auth.logout();
+
+
+    /**
+     * Después del logout regresamos al catálogo público.
+     */
+    this.router.navigate([
+      '/vacantes'
+    ]);
   }
 }

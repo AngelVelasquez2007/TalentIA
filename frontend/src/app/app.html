@@ -1,28 +1,23 @@
 <!--
 ============================================================
-TalentIA - Plantilla principal de la aplicación
+TalentIA - Estructura global
 Archivo: src/app/app.html
 ============================================================
 
-Esta plantilla contiene la estructura global visible en todas
-las páginas de TalentIA:
+Este archivo contiene:
 
-- barra de navegación;
-- identificación del usuario autenticado;
-- enlaces según el estado de sesión;
-- router-outlet para cargar las páginas;
-- pie de página con aviso sobre el uso de IA.
-
-El contenido de cada página se renderiza dentro de:
-
-    <router-outlet></router-outlet>
+- navegación principal;
+- opciones según rol;
+- usuario autenticado;
+- router-outlet;
+- footer institucional.
 
 ============================================================
 -->
 
 
 <!-- ========================================================
-     BARRA SUPERIOR
+     NAVEGACIÓN PRINCIPAL
      ======================================================== -->
 
 <header class="topbar">
@@ -30,127 +25,165 @@ El contenido de cada página se renderiza dentro de:
   <div class="topbar-inner">
 
     <!-- ====================================================
-         LOGO
+         MARCA
          ==================================================== -->
 
     <a
       routerLink="/vacantes"
       class="logo"
+      aria-label="Ir al inicio de TalentIA"
     >
-      Talent<span>IA</span>
 
-      <small>
-        · Reclutamiento inteligente
-      </small>
+      <span class="logo-symbol">
+        T
+      </span>
+
+
+      <span class="logo-text">
+
+        Talent<span>IA</span>
+
+        <small>
+          Reclutamiento inteligente
+        </small>
+
+      </span>
+
     </a>
 
 
     <!-- ====================================================
-         NAVEGACIÓN
+         MENÚ
          ==================================================== -->
 
-    <nav>
+    <nav class="navigation">
 
-      <!--
-        El catálogo de vacantes es público.
-        Cualquier visitante puede acceder.
-      -->
-      <a routerLink="/vacantes">
+      <!-- CATÁLOGO PÚBLICO -->
+
+      <a
+        routerLink="/vacantes"
+        class="nav-link"
+      >
         Vacantes
       </a>
 
 
-      <!--
-        Las postulaciones solamente se muestran
-        cuando existe una sesión.
-      -->
+      <!-- ==================================================
+           CANDIDATO
+           ================================================== -->
+
       <a
         *ngIf="
-          auth.autenticado &&
-          auth.usuario?.rol?.nombre === 'candidato'
+          auth.usuario?.rol?.nombre ===
+          'candidato'
+        "
+        routerLink="/perfil"
+        class="nav-link"
+      >
+        Mi perfil
+      </a>
+
+
+      <a
+        *ngIf="
+          auth.usuario?.rol?.nombre ===
+          'candidato'
         "
         routerLink="/postulaciones"
+        class="nav-link"
       >
         Mis postulaciones
       </a>
 
 
-      <!--
-        Acceso al panel de reclutamiento.
+      <!-- ==================================================
+           RECLUTADOR / ADMINISTRADOR
+           ================================================== -->
 
-        Solamente se muestra visualmente para:
-        - reclutador;
-        - administrador.
-
-        FastAPI sigue siendo responsable de validar
-        realmente los permisos.
-      -->
       <a
         *ngIf="
-          auth.autenticado &&
-          (
-            auth.usuario?.rol?.nombre === 'reclutador' ||
-            auth.usuario?.rol?.nombre === 'administrador'
-          )
+          auth.usuario?.rol?.nombre ===
+            'reclutador' ||
+          auth.usuario?.rol?.nombre ===
+            'administrador'
         "
         routerLink="/reclutador"
+        class="nav-link"
       >
-        Panel de reclutamiento
+        Reclutamiento
       </a>
+
+
+      <!-- ==================================================
+           NO AUTENTICADO
+           ================================================== -->
+
+      <ng-container
+        *ngIf="!auth.autenticado"
+      >
+
+        <a
+          routerLink="/login"
+          class="nav-link"
+        >
+          Ingresar
+        </a>
+
+
+        <a
+          routerLink="/registro"
+          class="register-link"
+        >
+          Crear cuenta
+        </a>
+
+      </ng-container>
 
 
       <!-- ==================================================
            USUARIO AUTENTICADO
            ================================================== -->
 
-      <span
-        class="user"
+      <div
+        class="session"
         *ngIf="auth.usuario"
       >
-        {{ auth.usuario?.nombre }}
 
-        <span *ngIf="auth.usuario?.apellido">
-          {{ auth.usuario?.apellido }}
-        </span>
-
-        ·
-
-        {{ auth.usuario?.rol?.nombre }}
-      </span>
+        <div class="user-avatar">
+          {{
+            auth.usuario.nombre
+              .charAt(0)
+              .toUpperCase()
+          }}
+        </div>
 
 
-      <!-- ==================================================
-           USUARIO NO AUTENTICADO
-           ================================================== -->
+        <div class="user-data">
 
-      <a
-        *ngIf="!auth.autenticado"
-        routerLink="/login"
-      >
-        Ingresar
-      </a>
+          <strong>
+            {{ auth.usuario.nombre }}
+          </strong>
 
+          <span>
+            {{
+              auth.usuario
+                .rol
+                .nombre
+            }}
+          </span>
 
-      <a
-        *ngIf="!auth.autenticado"
-        routerLink="/registro"
-      >
-        Crear cuenta
-      </a>
+        </div>
 
 
-      <!-- ==================================================
-           CERRAR SESIÓN
-           ================================================== -->
+        <button
+          type="button"
+          class="logout-button"
+          (click)="cerrarSesion()"
+        >
+          Salir
+        </button>
 
-      <button
-        type="button"
-        class="secondary"
-        *ngIf="auth.autenticado"
-        (click)="auth.logout()"
-      >
-        Salir
-      </button>
+      </div>
 
     </nav>
 
@@ -160,15 +193,18 @@ El contenido de cada página se renderiza dentro de:
 
 
 <!-- ========================================================
-     CONTENIDO PRINCIPAL
+     CONTENIDO DE LA APLICACIÓN
      ======================================================== -->
 
-<main>
+<main class="app-content">
 
   <!--
-    Angular Router reemplaza este elemento dinámicamente.
+    Angular Router inserta aquí el componente correspondiente.
 
     Ejemplos:
+
+    /vacantes
+        -> Vacantes
 
     /login
         -> Login
@@ -176,33 +212,73 @@ El contenido de cada página se renderiza dentro de:
     /registro
         -> Registro
 
-    /vacantes
-        -> Vacantes
+    /perfil
+        -> Perfil
 
     /postulaciones
         -> Postulaciones
 
     /reclutador
-        -> Panel del reclutador
+        -> Reclutador
   -->
-  <router-outlet></router-outlet>
+
+  <router-outlet>
+  </router-outlet>
 
 </main>
 
 
 <!-- ========================================================
-     PIE DE PÁGINA
+     FOOTER
      ======================================================== -->
 
-<footer>
+<footer class="footer">
 
-  <strong>
-    TalentIA
-  </strong>
+  <div class="footer-inner">
 
-  · Proyecto académico
+    <div>
 
-  · Las puntuaciones de compatibilidad son orientativas
-  y no sustituyen la evaluación humana.
+      <strong>
+        Talent<span>IA</span>
+      </strong>
+
+      <p>
+        Plataforma académica de reclutamiento
+        asistido por análisis inteligente.
+      </p>
+
+    </div>
+
+
+    <div class="footer-info">
+
+      <span>
+        Angular
+      </span>
+
+      <span>
+        FastAPI
+      </span>
+
+      <span>
+        PostgreSQL
+      </span>
+
+      <span>
+        NLP / Matching
+      </span>
+
+    </div>
+
+  </div>
+
+
+  <div class="ethical-footer">
+
+    Las puntuaciones de compatibilidad son orientativas.
+    TalentIA no selecciona ni rechaza candidatos
+    automáticamente y no sustituye la evaluación humana.
+
+  </div>
 
 </footer>

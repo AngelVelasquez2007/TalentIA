@@ -1,0 +1,778 @@
+/**
+ * ============================================================
+ * TalentIA - Estilos globales del componente raíz
+ * Archivo: src/app/app.scss
+ * ============================================================
+ */
+
+
+/* ==========================================================
+   HOST
+   ========================================================== */
+
+:host {
+  display: flex;
+
+  flex-direction: column;
+
+  min-height: 100vh;
+
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  color: #172033;
+
+  background: #f5f6fa;
+}
+
+
+* {
+  box-sizing: border-box;
+}
+
+
+/* ==========================================================
+   TOPBAR
+   ========================================================== */
+
+.topbar {
+  position: relative;
+
+  z-index: 100;
+
+  width: 100%;
+
+  border-bottom:
+    1px solid #e5e7ef;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.97
+    );
+
+  box-shadow:
+    0 2px 12px
+    rgba(
+      26,
+      34,
+      56,
+      0.04
+    );
+}
+
+
+.topbar-inner {
+  width:
+    min(1220px, 100%);
+
+  min-height: 72px;
+
+  margin:
+    0 auto;
+
+  padding:
+    0 24px;
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    space-between;
+
+  gap:
+    28px;
+}
+
+
+/* ==========================================================
+   LOGO
+   ========================================================== */
+
+.logo {
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  gap:
+    10px;
+
+  flex:
+    0 0 auto;
+
+  color:
+    #202843;
+
+  text-decoration:
+    none;
+}
+
+
+.logo-symbol {
+  width:
+    38px;
+
+  height:
+    38px;
+
+  display:
+    grid;
+
+  place-items:
+    center;
+
+  border-radius:
+    11px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #4f46e5,
+      #7c3aed
+    );
+
+  color:
+    white;
+
+  font-size:
+    19px;
+
+  font-weight:
+    900;
+
+  box-shadow:
+    0 6px 16px
+    rgba(
+      79,
+      70,
+      229,
+      0.22
+    );
+}
+
+
+.logo-text {
+  display:
+    flex;
+
+  align-items:
+    baseline;
+
+  color:
+    #202843;
+
+  font-size:
+    20px;
+
+  font-weight:
+    900;
+
+  letter-spacing:
+    -0.5px;
+}
+
+
+.logo-text > span {
+  color:
+    #4f46e5;
+}
+
+
+.logo-text small {
+  margin-left:
+    7px;
+
+  color:
+    #8990a0;
+
+  font-size:
+    10px;
+
+  font-weight:
+    500;
+
+  letter-spacing:
+    0;
+}
+
+
+/* ==========================================================
+   NAVEGACIÓN
+   ========================================================== */
+
+.navigation {
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    flex-end;
+
+  gap:
+    5px;
+
+  min-width:
+    0;
+}
+
+
+.nav-link {
+  display:
+    inline-flex;
+
+  align-items:
+    center;
+
+  min-height:
+    38px;
+
+  padding:
+    0 11px;
+
+  border-radius:
+    8px;
+
+  color:
+    #555d70;
+
+  font-size:
+    12px;
+
+  font-weight:
+    700;
+
+  text-decoration:
+    none;
+
+  white-space:
+    nowrap;
+
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+
+.nav-link:hover {
+  background:
+    #f3f4f8;
+
+  color:
+    #4338ca;
+}
+
+
+/* ==========================================================
+   CREAR CUENTA
+   ========================================================== */
+
+.register-link {
+  display:
+    inline-flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    center;
+
+  min-height:
+    38px;
+
+  padding:
+    0 14px;
+
+  margin-left:
+    3px;
+
+  border-radius:
+    9px;
+
+  background:
+    #4f46e5;
+
+  color:
+    white;
+
+  font-size:
+    12px;
+
+  font-weight:
+    800;
+
+  text-decoration:
+    none;
+
+  white-space:
+    nowrap;
+
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+
+
+.register-link:hover {
+  transform:
+    translateY(-1px);
+
+  box-shadow:
+    0 6px 15px
+    rgba(
+      79,
+      70,
+      229,
+      0.2
+    );
+}
+
+
+/* ==========================================================
+   SESIÓN
+   ========================================================== */
+
+.session {
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  gap:
+    9px;
+
+  margin-left:
+    10px;
+
+  padding-left:
+    14px;
+
+  border-left:
+    1px solid #e3e5ec;
+}
+
+
+.user-avatar {
+  width:
+    34px;
+
+  height:
+    34px;
+
+  display:
+    grid;
+
+  place-items:
+    center;
+
+  flex:
+    0 0 34px;
+
+  border-radius:
+    10px;
+
+  background:
+    #eef2ff;
+
+  color:
+    #4338ca;
+
+  font-size:
+    13px;
+
+  font-weight:
+    900;
+}
+
+
+.user-data {
+  display:
+    flex;
+
+  flex-direction:
+    column;
+
+  min-width:
+    0;
+}
+
+
+.user-data strong {
+  max-width:
+    120px;
+
+  overflow:
+    hidden;
+
+  color:
+    #30384d;
+
+  font-size:
+    11px;
+
+  text-overflow:
+    ellipsis;
+
+  white-space:
+    nowrap;
+}
+
+
+.user-data span {
+  margin-top:
+    1px;
+
+  color:
+    #8a91a1;
+
+  font-size:
+    9px;
+
+  text-transform:
+    capitalize;
+}
+
+
+/* ==========================================================
+   LOGOUT
+   ========================================================== */
+
+.logout-button {
+  min-height:
+    34px;
+
+  padding:
+    0 10px;
+
+  border:
+    1px solid #e1e4ec;
+
+  border-radius:
+    8px;
+
+  background:
+    white;
+
+  color:
+    #60687a;
+
+  font: inherit;
+
+  font-size:
+    10px;
+
+  font-weight:
+    800;
+
+  cursor:
+    pointer;
+
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+
+.logout-button:hover {
+  border-color:
+    #fecaca;
+
+  background:
+    #fff1f2;
+
+  color:
+    #b42318;
+}
+
+
+/* ==========================================================
+   CONTENIDO
+   ========================================================== */
+
+.app-content {
+  flex: 1;
+
+  width: 100%;
+
+  min-width: 0;
+}
+
+
+/* ==========================================================
+   FOOTER
+   ========================================================== */
+
+.footer {
+  margin-top:
+    auto;
+
+  border-top:
+    1px solid #e3e6ee;
+
+  background:
+    #171d34;
+
+  color:
+    white;
+}
+
+
+.footer-inner {
+  width:
+    min(1180px, 100%);
+
+  margin:
+    0 auto;
+
+  padding:
+    27px 24px;
+
+  display:
+    flex;
+
+  align-items:
+    center;
+
+  justify-content:
+    space-between;
+
+  gap:
+    30px;
+}
+
+
+.footer strong {
+  font-size:
+    18px;
+}
+
+
+.footer strong span {
+  color:
+    #a5b4fc;
+}
+
+
+.footer p {
+  margin:
+    5px 0 0;
+
+  color:
+    #abb1c3;
+
+  font-size:
+    11px;
+}
+
+
+.footer-info {
+  display:
+    flex;
+
+  flex-wrap:
+    wrap;
+
+  justify-content:
+    flex-end;
+
+  gap:
+    7px;
+}
+
+
+.footer-info span {
+  padding:
+    6px 9px;
+
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.1
+    );
+
+  border-radius:
+    7px;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.05
+    );
+
+  color:
+    #c9cddd;
+
+  font-size:
+    9px;
+
+  font-weight:
+    700;
+}
+
+
+.ethical-footer {
+  padding:
+    11px 24px;
+
+  border-top:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.07
+    );
+
+  background:
+    rgba(
+      0,
+      0,
+      0,
+      0.12
+    );
+
+  color:
+    #8f96aa;
+
+  font-size:
+    9px;
+
+  line-height:
+    1.5;
+
+  text-align:
+    center;
+}
+
+
+/* ==========================================================
+   RESPONSIVE
+   ========================================================== */
+
+@media (
+  max-width: 900px
+) {
+
+  .logo-text small {
+    display:
+      none;
+  }
+
+
+  .user-data {
+    display:
+      none;
+  }
+}
+
+
+@media (
+  max-width: 760px
+) {
+
+  .topbar-inner {
+    min-height:
+      auto;
+
+    padding:
+      13px 15px;
+
+    flex-direction:
+      column;
+
+    align-items:
+      stretch;
+
+    gap:
+      12px;
+  }
+
+
+  .logo {
+    justify-content:
+      center;
+  }
+
+
+  .navigation {
+    justify-content:
+      center;
+
+    flex-wrap:
+      wrap;
+  }
+
+
+  .session {
+    margin-left:
+      0;
+
+    padding-left:
+      7px;
+
+    border-left:
+      0;
+  }
+
+
+  .footer-inner {
+    flex-direction:
+      column;
+
+    align-items:
+      flex-start;
+  }
+
+
+  .footer-info {
+    justify-content:
+      flex-start;
+  }
+}
+
+
+@media (
+  max-width: 480px
+) {
+
+  .nav-link,
+  .register-link {
+    padding:
+      0 8px;
+
+    font-size:
+      10px;
+  }
+
+
+  .user-avatar {
+    display:
+      none;
+  }
+
+
+  .session {
+    padding:
+      0;
+  }
+}
